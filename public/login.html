@@ -162,9 +162,10 @@
         });
 
         // Todos los imports deben estar al principio
-        import { authService } from '../src/services/auth.js';
-        import { themeService } from '../src/services/theme.js';
-        import apiClient from '../src/services/api.js';
+        // Usar rutas absolutas desde la raíz del proyecto
+        import { authService } from '/src/services/auth.js';
+        import { themeService } from '/src/services/theme.js';
+        import apiClient from '/src/services/api.js';
 
         // Verificar que los módulos se cargaron correctamente
         console.log('Módulos cargados:', {
