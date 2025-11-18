@@ -154,8 +154,10 @@
     </script>
     
     <script type="module">
+        // Todos los imports deben estar al principio
         import { authService } from '../src/services/auth.js';
         import { themeService } from '../src/services/theme.js';
+        import apiClient from '../src/services/api.js';
 
         // Inicializar servicio de tema
         document.addEventListener('DOMContentLoaded', () => {
@@ -176,17 +178,13 @@
             }, 100);
         });
 
-        // Usar el proxy de Vite para evitar problemas de CORS
-        const API_URL = '/api';
         let isRegisterMode = false;
 
         // Verificar si es modo registro
         async function checkRegisterMode() {
             try {
-                const response = await fetch(`${API_URL}/auth/check-admin`, {
-                    credentials: 'include' // Necesario para enviar cookies (CSRF token)
-                });
-                const data = await response.json();
+                const response = await apiClient.get('/auth/check-admin');
+                const data = response.data;
                 isRegisterMode = !data.exists;
                 
                 if (isRegisterMode) {
