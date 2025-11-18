@@ -154,38 +154,77 @@
     </script>
     
     <script type="module">
+        // Manejo global de errores para evitar que la página quede en blanco
+        window.addEventListener('error', (event) => {
+            console.error('Error global capturado:', event.error);
+            console.error('En archivo:', event.filename, 'Línea:', event.lineno);
+            // No detener la ejecución, solo loguear
+        });
+
         // Todos los imports deben estar al principio
         import { authService } from '../src/services/auth.js';
         import { themeService } from '../src/services/theme.js';
         import apiClient from '../src/services/api.js';
 
+        // Verificar que los módulos se cargaron correctamente
+        console.log('Módulos cargados:', {
+            authService: !!authService,
+            themeService: !!themeService,
+            apiClient: !!apiClient
+        });
+        
+        // Verificar la URL base de la API
+        if (apiClient && apiClient.defaults) {
+            console.log('API Base URL configurada:', apiClient.defaults.baseURL);
+            console.log('Variable de entorno VITE_API_URL:', import.meta.env.VITE_API_URL || 'No definida');
+        } else {
+            console.error('apiClient no está configurado correctamente');
+        }
+
         // Inicializar servicio de tema
         document.addEventListener('DOMContentLoaded', () => {
-            themeService.init();
-            // Actualizar icono después de inicializar
-            setTimeout(() => {
-                const themeIcon = document.getElementById('themeIcon');
-                if (themeIcon) {
-                    const isDark = document.documentElement.classList.contains('dark');
-                    if (isDark) {
-                        themeIcon.classList.remove('fa-moon');
-                        themeIcon.classList.add('fa-sun');
-                    } else {
-                        themeIcon.classList.remove('fa-sun');
-                        themeIcon.classList.add('fa-moon');
-                    }
+            try {
+                if (themeService) {
+                    themeService.init();
                 }
-            }, 100);
+                // Actualizar icono después de inicializar
+                setTimeout(() => {
+                    const themeIcon = document.getElementById('themeIcon');
+                    if (themeIcon) {
+                        const isDark = document.documentElement.classList.contains('dark');
+                        if (isDark) {
+                            themeIcon.classList.remove('fa-moon');
+                            themeIcon.classList.add('fa-sun');
+                        } else {
+                            themeIcon.classList.remove('fa-sun');
+                            themeIcon.classList.add('fa-moon');
+                        }
+                    }
+                }, 100);
+            } catch (error) {
+                console.error('Error inicializando tema:', error);
+            }
         });
 
         let isRegisterMode = false;
 
         // Verificar si es modo registro
         async function checkRegisterMode() {
+            if (!apiClient) {
+                console.error('apiClient no está disponible');
+                return;
+            }
+            
             try {
+                console.log('Verificando modo registro...');
+                console.log('URL de la petición:', apiClient.defaults?.baseURL + '/auth/check-admin');
+                
                 const response = await apiClient.get('/auth/check-admin');
+                console.log('Respuesta recibida:', response);
+                
                 const data = response.data;
                 isRegisterMode = !data.exists;
+                console.log('Modo registro:', isRegisterMode);
                 
                 if (isRegisterMode) {
                     document.getElementById('title').textContent = 'Registrar Admin';
@@ -198,6 +237,22 @@
                 }
             } catch (error) {
                 console.error('Error verificando modo:', error);
+                console.error('Detalles del error:', {
+                    message: error.message,
+                    response: error.response,
+                    request: error.request,
+                    config: error.config
+                });
+                
+                // Mostrar error al usuario
+                if (error.response) {
+                    console.error('Error del servidor:', error.response.status, error.response.data);
+                } else if (error.request) {
+                    console.error('No se recibió respuesta del servidor');
+                    alert('No se pudo conectar con el servidor. Verifica que la API esté funcionando.');
+                } else {
+                    console.error('Error configurando la petición:', error.message);
+                }
             }
         }
 
@@ -273,8 +328,20 @@
             }
         });
 
-        // Inicializar
-        checkRegisterMode();
+        // Inicializar después de que el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM cargado, ejecutando checkRegisterMode...');
+            checkRegisterMode();
+        });
+        
+        // También ejecutar inmediatamente si el DOM ya está listo
+        if (document.readyState === 'loading') {
+            // Esperar a que el DOM esté listo
+        } else {
+            // DOM ya está listo
+            console.log('DOM ya está listo, ejecutando checkRegisterMode inmediatamente...');
+            checkRegisterMode();
+        }
     </script>
 </body>
 </html>
