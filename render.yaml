@@ -1,10 +1,14 @@
 services:
   - type: web
     name: sistema-acceso-frontend
-    env: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
     envVars:
       - key: VITE_API_URL
         sync: false
+        # IMPORTANTE: Configura esta variable en Render > Environment
+        # Ejemplo: https://project-pas-api.onrender.com
+        # (sin /api al final, se agrega automáticamente)
 
