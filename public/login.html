@@ -9,6 +9,21 @@
     <link rel="stylesheet" href="/src/assets/css/dark-mode.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Script de diagnóstico que se ejecuta ANTES de los módulos ES6
+        console.log('🔍 Script de diagnóstico iniciado');
+        console.log('URL actual:', window.location.href);
+        console.log('User Agent:', navigator.userAgent);
+        
+        // Verificar si hay errores de módulos
+        window.addEventListener('error', (e) => {
+            if (e.message && e.message.includes('Failed to fetch dynamically imported module')) {
+                console.error('❌ Error crítico: No se pueden cargar los módulos');
+                console.error('Esto generalmente significa que los archivos no se encuentran en las rutas esperadas');
+                alert('Error: No se pueden cargar los módulos de la aplicación. Esto puede deberse a un problema con el build o las rutas de los archivos.');
+            }
+        });
+    </script>
+    <script>
         // Inicializar tema antes de que se cargue la página para evitar flash
         (function() {
             try {
@@ -154,21 +169,35 @@
     </script>
     
     <script type="module">
-        // Manejo global de errores para evitar que la página quede en blanco
-        window.addEventListener('error', (event) => {
-            console.error('Error global capturado:', event.error);
-            console.error('En archivo:', event.filename, 'Línea:', event.lineno);
-            // No detener la ejecución, solo loguear
-        });
-
-        // Todos los imports deben estar al principio
-        // Usar rutas absolutas desde la raíz del proyecto
+        // Los imports DEBEN estar al principio absoluto del módulo
         import { authService } from '/src/services/auth.js';
         import { themeService } from '/src/services/theme.js';
         import apiClient from '/src/services/api.js';
 
+        // Log inicial para verificar que el script se ejecuta
+        console.log('=== Script de login iniciado ===');
+        console.log('Timestamp:', new Date().toISOString());
+        
+        // Manejo global de errores para evitar que la página quede en blanco
+        window.addEventListener('error', (event) => {
+            console.error('❌ Error global capturado:', event.error);
+            console.error('Archivo:', event.filename);
+            console.error('Línea:', event.lineno, 'Columna:', event.colno);
+            console.error('Mensaje:', event.message);
+            // Mostrar error visualmente
+            if (event.error) {
+                alert('Error en la aplicación: ' + event.error.message);
+            }
+        });
+
+        // Manejar errores de promesas no capturadas
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('❌ Promesa rechazada no manejada:', event.reason);
+            console.error('Detalles:', event);
+        });
+
         // Verificar que los módulos se cargaron correctamente
-        console.log('Módulos cargados:', {
+        console.log('✅ Módulos cargados:', {
             authService: !!authService,
             themeService: !!themeService,
             apiClient: !!apiClient
@@ -176,10 +205,10 @@
         
         // Verificar la URL base de la API
         if (apiClient && apiClient.defaults) {
-            console.log('API Base URL configurada:', apiClient.defaults.baseURL);
-            console.log('Variable de entorno VITE_API_URL:', import.meta.env.VITE_API_URL || 'No definida');
+            console.log('🌐 API Base URL configurada:', apiClient.defaults.baseURL);
+            console.log('🔧 Variable de entorno VITE_API_URL:', import.meta.env.VITE_API_URL || 'No definida');
         } else {
-            console.error('apiClient no está configurado correctamente');
+            console.error('❌ apiClient no está configurado correctamente');
         }
 
         // Inicializar servicio de tema
