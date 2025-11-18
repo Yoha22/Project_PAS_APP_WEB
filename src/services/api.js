@@ -16,13 +16,22 @@ const apiClient = axios.create({
   withCredentials: true, // Necesario para enviar cookies (CSRF token)
 });
 
-// Interceptor para agregar token a las peticiones
+// Interceptor para asegurar que las rutas siempre usen el baseURL
+// Si la ruta comienza con '/', la convierte a relativa para que use baseURL
 apiClient.interceptors.request.use(
   (config) => {
+    // Si la URL comienza con '/', convertirla a relativa (sin '/')
+    // Esto asegura que siempre use el baseURL configurado
+    if (config.url && config.url.startsWith('/')) {
+      config.url = config.url.substring(1);
+    }
+    
+    // Agregar token a las peticiones
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
