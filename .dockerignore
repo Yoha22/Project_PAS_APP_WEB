@@ -2,7 +2,7 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
+# NO excluir package-lock.json - es necesario para npm ci
 
 # Build output
 dist
