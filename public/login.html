@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Sistema de Acceso</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/src/assets/css/dark-mode.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Inicializar tema antes de que se cargue la página para evitar flash
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('darkMode');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const isDark = savedTheme === 'true' || (savedTheme === null && prefersDark);
+                
+                if (document.documentElement) {
+                    if (isDark) {
+                        document.documentElement.classList.add('dark');
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        document.documentElement.setAttribute('data-theme', 'light');
+                    }
+                }
+            } catch (e) {
+                console.error('Error inicializando tema:', e);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <!-- Botón de modo oscuro -->
+    <button id="themeToggle" onclick="toggleTheme()" class="fixed top-4 right-4 z-50 p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 cursor-pointer">
+        <i class="fas fa-moon text-gray-800 dark:text-yellow-400 text-xl" id="themeIcon"></i>
+    </button>
+
+    <section class="bg-gradient-to-r from-blue-300 to-green-300 dark:from-gray-800 dark:to-gray-900 justify-center min-h-screen flex items-center fade-in">
+        <div class="flex flex-col items-center justify-center px-6 py-8 mx-auto w-full max-w-md">
+            <div class="flex items-center mb-8 animate__animated animate__fadeInDown">
+                <img class="w-16 h-16 mr-3 rounded-full shadow-lg" src="/img/huella2.PNG" alt="logo">
+                <h1 class="text-4xl md:text-5xl font-bold text-white drop-shadow-lg" id="title">
+                    Bienvenido Admin
+                </h1>
+            </div>
+
+            <div class="w-full bg-white rounded-xl shadow-2xl dark:border sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700 transition-smooth">
+                <div class="p-8 space-y-6">
+                    <div class="text-center">
+                        <h1 class="text-2xl font-bold leading-tight tracking-tight text-gray-900 md:text-3xl dark:text-white mb-2" id="formTitle">
+                            Iniciar Sesión
+                        </h1>
+                        <p class="text-sm text-gray-600 dark:text-gray-400" id="formSubtitle">
+                            Ingresa tus credenciales para continuar
+                        </p>
+                    </div>
+
+                    <form id="authForm" method="POST" class="space-y-5">
+                        <div>
+                            <label for="correo" class="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
+                                <i class="fas fa-envelope mr-2"></i>Correo Electrónico
+                            </label>
+                            <input class="appearance-none border-2 border-gray-300 dark:border-gray-600 rounded-lg w-full py-3 px-4 leading-tight focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-smooth"
+                                id="correo" name="correo" type="email" placeholder="correo@ejemplo.com" required>
+                        </div>
+                        <div>
+                            <label for="password" class="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
+                                <i class="fas fa-lock mr-2"></i>Contraseña
+                            </label>
+                            <input class="appearance-none border-2 border-gray-300 dark:border-gray-600 rounded-lg w-full py-3 px-4 leading-tight focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-smooth"
+                                id="password" name="password" type="password" placeholder="••••••••" required>
+                        </div>
+                        <div id="registerFields" style="display: none;">
+                            <div>
+                                <label for="telefono" class="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
+                                    <i class="fas fa-phone mr-2"></i>Teléfono
+                                </label>
+                                <input class="appearance-none border-2 border-gray-300 dark:border-gray-600 rounded-lg w-full py-3 px-4 leading-tight focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-smooth"
+                                    id="telefono" name="telefono" type="tel" placeholder="1234567890">
+                            </div>
+                            <div>
+                                <label for="codigo" class="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
+                                    <i class="fas fa-key mr-2"></i>Código Único
+                                </label>
+                                <input class="appearance-none border-2 border-gray-300 dark:border-gray-600 rounded-lg w-full py-3 px-4 leading-tight focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-smooth"
+                                    id="codigo" name="codigo" type="text" placeholder="Código único">
+                            </div>
+                        </div>
+                        <button type="submit" id="submitBtn"
+                            class="w-full text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-semibold rounded-lg text-sm px-5 py-3 text-center shadow-lg hover:shadow-xl transition-smooth transform hover:-translate-y-0.5">
+                            <i class="fas fa-sign-in-alt mr-2"></i><span id="submitText">Iniciar Sesión</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Función simple para alternar tema (sin módulos ES6)
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const body = document.body;
+            const isDark = html.classList.contains('dark');
+            
+            if (isDark) {
+                html.classList.remove('dark');
+                body.classList.remove('active');
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('darkMode', 'false');
+            } else {
+                html.classList.add('dark');
+                body.classList.add('active');
+                html.setAttribute('data-theme', 'dark');
+                localStorage.setItem('darkMode', 'true');
+            }
+            
+            updateThemeIcon();
+            console.log('Tema cambiado a:', isDark ? 'claro' : 'oscuro');
+        };
+        
+        window.updateThemeIcon = function() {
+            const themeIcon = document.getElementById('themeIcon');
+            if (!themeIcon) return;
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        };
+        
+        // Configurar botón cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initThemeButton);
+        } else {
+            initThemeButton();
+        }
+        
+        function initThemeButton() {
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', window.toggleTheme);
+                window.updateThemeIcon();
+            } else {
+                console.error('No se encontró el botón themeToggle');
+            }
+        }
+    </script>
+    
+    <script type="module">
+        import { authService } from '../src/services/auth.js';
+        import { themeService } from '../src/services/theme.js';
+
+        // Inicializar servicio de tema
+        document.addEventListener('DOMContentLoaded', () => {
+            themeService.init();
+            // Actualizar icono después de inicializar
+            setTimeout(() => {
+                const themeIcon = document.getElementById('themeIcon');
+                if (themeIcon) {
+                    const isDark = document.documentElement.classList.contains('dark');
+                    if (isDark) {
+                        themeIcon.classList.remove('fa-moon');
+                        themeIcon.classList.add('fa-sun');
+                    } else {
+                        themeIcon.classList.remove('fa-sun');
+                        themeIcon.classList.add('fa-moon');
+                    }
+                }
+            }, 100);
+        });
+
+        // Usar el proxy de Vite para evitar problemas de CORS
+        const API_URL = '/api';
+        let isRegisterMode = false;
+
+        // Verificar si es modo registro
+        async function checkRegisterMode() {
+            try {
+                const response = await fetch(`${API_URL}/auth/check-admin`, {
+                    credentials: 'include' // Necesario para enviar cookies (CSRF token)
+                });
+                const data = await response.json();
+                isRegisterMode = !data.exists;
+                
+                if (isRegisterMode) {
+                    document.getElementById('title').textContent = 'Registrar Admin';
+                    document.getElementById('formTitle').textContent = 'Registrar Administrador';
+                    document.getElementById('formSubtitle').textContent = 'Crea tu cuenta de administrador';
+                    document.getElementById('submitText').textContent = 'Registrar';
+                    document.getElementById('registerFields').style.display = 'block';
+                    document.getElementById('telefono').required = true;
+                    document.getElementById('codigo').required = true;
+                }
+            } catch (error) {
+                console.error('Error verificando modo:', error);
+            }
+        }
+
+        // Manejar envío del formulario
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                correo: document.getElementById('correo').value,
+                password: document.getElementById('password').value,
+            };
+
+            if (isRegisterMode) {
+                formData.telefono = document.getElementById('telefono').value;
+                formData.codigo = document.getElementById('codigo').value;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
+
+            try {
+                let result;
+                if (isRegisterMode) {
+                    result = await authService.register(formData);
+                } else {
+                    result = await authService.login(formData);
+                }
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Éxito',
+                        text: result.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = '/dashboard.html';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: result.message || 'Ocurrió un error'
+                    });
+                }
+            } catch (error) {
+                console.error('Error completo:', error);
+                let errorMessage = 'Ocurrió un error al procesar la solicitud';
+                
+                if (error.response) {
+                    // El servidor respondió con un error
+                    errorMessage = error.response.data?.message 
+                        || error.response.data?.error 
+                        || `Error ${error.response.status}: ${error.response.statusText}`;
+                } else if (error.request) {
+                    // La petición se hizo pero no hubo respuesta
+                    errorMessage = 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.';
+                } else {
+                    // Error al configurar la petición
+                    errorMessage = error.message || errorMessage;
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorMessage
+                });
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+
+        // Inicializar
+        checkRegisterMode();
+    </script>
+</body>
+</html>
+

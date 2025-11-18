@@ -1,0 +1,645 @@
+/* ============================================
+   ESTILOS GLOBALES Y MEJORAS VISUALES
+   ============================================ */
+
+/* Prevenir flash de modo claro - aplicar inmediatamente si hay data-theme */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+body.active {
+    background-color: #111827 !important;
+    color: #f9fafb !important;
+}
+
+/* Variables CSS para colores (modo claro) */
+:root {
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --secondary-color: #10b981;
+    --accent-color: #8b5cf6;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-tertiary: #f3f4f6;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border-color: #e5e7eb;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Variables CSS para modo oscuro */
+body.active {
+    --primary-color: #60a5fa;
+    --primary-hover: #3b82f6;
+    --secondary-color: #34d399;
+    --accent-color: #a78bfa;
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --bg-tertiary: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --border-color: #4b5563;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* Reset y estilos base */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* ============================================
+   MODO OSCURO - ESTILOS COMPLETOS
+   ============================================ */
+
+body.active {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Navbar en modo oscuro */
+body.active nav {
+    background-color: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.active nav ul {
+    background-color: var(--bg-tertiary) !important;
+}
+
+body.active nav ul li a {
+    color: var(--text-primary) !important;
+}
+
+body.active nav ul li a:hover {
+    color: var(--primary-color) !important;
+}
+
+/* Sidebar en modo oscuro */
+body.active aside {
+    background-color: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.active aside a {
+    color: var(--text-primary) !important;
+}
+
+body.active aside a:hover {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--primary-color) !important;
+}
+
+/* Cards y contenedores en modo oscuro */
+body.active .bg-white {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.active .bg-blue-200,
+body.active .bg-pink-200,
+body.active .bg-green-200 {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Tablas en modo oscuro */
+body.active table {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+body.active thead {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+body.active tbody tr {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+body.active tbody tr:hover {
+    background-color: var(--bg-tertiary) !important;
+}
+
+body.active tbody tr td,
+body.active tbody tr th {
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Inputs y formularios en modo oscuro */
+body.active input[type="text"],
+body.active input[type="email"],
+body.active input[type="password"],
+body.active input[type="date"],
+body.active textarea,
+body.active select {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.active input[type="text"]:focus,
+body.active input[type="email"]:focus,
+body.active input[type="password"]:focus,
+body.active input[type="date"]:focus,
+body.active textarea:focus,
+body.active select:focus {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--primary-color) !important;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+body.active input::placeholder {
+    color: var(--text-secondary) !important;
+}
+
+/* Botones en modo oscuro */
+body.active button {
+    transition: var(--transition);
+}
+
+body.active .bg-blue-300,
+body.active .bg-blue-500 {
+    background-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+}
+
+body.active .bg-blue-300:hover,
+body.active .bg-blue-500:hover {
+    background-color: var(--primary-hover) !important;
+}
+
+body.active .bg-red-400,
+body.active .bg-red-300 {
+    background-color: #ef4444 !important;
+    color: white !important;
+}
+
+body.active .bg-red-400:hover,
+body.active .bg-red-300:hover {
+    background-color: #dc2626 !important;
+}
+
+/* Labels en modo oscuro */
+body.active label {
+    color: var(--text-primary) !important;
+}
+
+body.active .text-gray-700,
+body.active .text-gray-900 {
+    color: var(--text-primary) !important;
+}
+
+body.active .text-gray-500 {
+    color: var(--text-secondary) !important;
+}
+
+/* ============================================
+   INTERRUPTOR DE MODO OSCURO MEJORADO
+   ============================================ */
+
+.mode {
+    width: 70px;
+    height: 36px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    border-radius: 100px;
+    border: 2px solid var(--border-color);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow-md);
+}
+
+.mode:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-lg);
+}
+
+.mode.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
+}
+
+/* Iconos del interruptor */
+.mode button {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    transition: var(--transition);
+}
+
+.mode button img {
+    width: 20px;
+    height: 20px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    transition: var(--transition);
+}
+
+.mode.active button img {
+    filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.3));
+}
+
+/* Círculo deslizante del interruptor */
+.font-medium li.mode::before {
+    content: "";
+    position: absolute;
+    height: 28px;
+    width: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    left: 4px;
+    right: unset;
+    transition: var(--transition);
+    box-shadow: var(--shadow-md);
+    z-index: 1;
+}
+
+.font-medium li.mode.active::before {
+    right: 4px;
+    left: unset;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 8px rgba(251, 191, 36, 0.4);
+}
+
+/* ============================================
+   NAVBAR Y DROPDOWN MEJORADOS
+   ============================================ */
+
+/* Navbar mejorado */
+nav {
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: var(--transition);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+}
+
+body.active nav {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Logo y título del navbar */
+nav a.group:hover img {
+    filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.3));
+}
+
+/* Items del navbar */
+nav ul li {
+    position: relative;
+}
+
+/* Separador visual en el dropdown - entre Settings y Logout */
+#dropdownNavbar ul li:not(:last-child) {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+#dropdownNavbar ul li:last-child {
+    padding-top: 8px;
+    margin-top: 4px;
+}
+
+/* Dropdown mejorado */
+#dropdownNavbar {
+    animation: fadeInDown 0.2s ease-out;
+    transform-origin: top right;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Items del dropdown */
+#dropdownNavbar ul li a,
+#dropdownNavbar ul li button {
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    margin: 2px 4px;
+}
+
+#dropdownNavbar ul li a::before,
+#dropdownNavbar ul li button::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+    border-radius: 0 3px 3px 0;
+}
+
+#dropdownNavbar ul li a:hover::before,
+#dropdownNavbar ul li button:hover::before {
+    transform: scaleY(1);
+}
+
+/* Efecto hover mejorado para items del dropdown */
+#dropdownNavbar ul li a:hover,
+#dropdownNavbar ul li button:hover {
+    transform: translateX(4px);
+}
+
+#dropdownNavbar ul li a svg,
+#dropdownNavbar ul li button svg {
+    flex-shrink: 0;
+}
+
+/* Botón de opciones mejorado */
+#dropdownNavbarLink {
+    position: relative;
+}
+
+#dropdownNavbarLink:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+body.active #dropdownNavbarLink:hover {
+    background-color: rgba(96, 165, 250, 0.1);
+}
+
+/* Mejoras para el botón de cerrar sesión */
+#dropdownNavbar ul li button[name="cerrar_sesion"] {
+    margin-top: 0;
+}
+
+#dropdownNavbar ul li button[name="cerrar_sesion"]:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+body.active #dropdownNavbar ul li button[name="cerrar_sesion"]:hover {
+    background-color: rgba(220, 38, 38, 0.2);
+}
+
+/* Mejoras para el modo oscuro en el navbar */
+.mode button {
+    border-radius: 50%;
+    padding: 4px;
+    transition: var(--transition);
+}
+
+.mode button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: scale(1.1);
+}
+
+body.active .mode button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   MEJORAS DE ESTILO GENERALES
+   ============================================ */
+
+/* Cards mejoradas */
+.card {
+    background-color: var(--bg-primary);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+/* Botones mejorados */
+button {
+    transition: var(--transition);
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Inputs mejorados */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+textarea,
+select {
+    border-radius: 8px;
+    transition: var(--transition);
+    border: 1px solid var(--border-color);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Tablas mejoradas */
+table {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+thead {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: white;
+}
+
+tbody tr {
+    transition: var(--transition);
+}
+
+tbody tr:hover {
+    background-color: var(--bg-tertiary);
+    transform: scale(1.01);
+}
+
+/* Gradientes mejorados */
+.bg-gradient-to-r {
+    background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+}
+
+body.active .bg-gradient-to-r {
+    background: linear-gradient(135deg, #1e40af 0%, #065f46 100%);
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
+    border: 2px solid var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+body.active ::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+}
+
+body.active ::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+/* Animaciones suaves */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Mejoras para el formulario de login */
+body.active .bg-white.rounded-lg.shadow {
+    background-color: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Estilos específicos para el botón de recuperar contraseña */
+#forgotPasswordBtn {
+    color: #1f2937 !important; /* text-gray-800 más oscuro para mejor contraste */
+    background-color: #f9fafb !important; /* bg-gray-50 más claro */
+    border: 1px solid #e5e7eb !important;
+    font-weight: 600 !important;
+}
+
+#forgotPasswordBtn:hover {
+    background-color: #f3f4f6 !important; /* hover más visible */
+    color: #111827 !important; /* texto aún más oscuro en hover */
+    transform: translateY(-1px);
+}
+
+#forgotPasswordBtn i {
+    color: inherit;
+}
+
+/* Modo oscuro para el botón de recuperar contraseña */
+body.active #forgotPasswordBtn {
+    color: #f3f4f6 !important; /* text-gray-100 más claro */
+    background-color: #374151 !important; /* bg-gray-700 */
+    border-color: #4b5563 !important;
+}
+
+body.active #forgotPasswordBtn:hover {
+    background-color: #4b5563 !important; /* hover más claro en modo oscuro */
+    color: #ffffff !important; /* texto blanco en hover */
+}
+
+body.active .text-gray-900 {
+    color: var(--text-primary) !important;
+}
+
+body.active .dark\:text-white {
+    color: var(--text-primary) !important;
+}
+
+body.active .dark\:bg-gray-800 {
+    background-color: var(--bg-primary) !important;
+}
+
+body.active .dark\:border-gray-700 {
+    border-color: var(--border-color) !important;
+}
+
+/* Mejoras para secciones específicas */
+body.active section {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+}
+
+/* Mejoras para modales y popups */
+body.active .swal2-popup {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+body.active .swal2-title {
+    color: var(--text-primary) !important;
+}
+
+body.active .swal2-content {
+    color: var(--text-secondary) !important;
+}
+
+/* Utilidades adicionales */
+.h-8 {
+    border-radius: 10px;
+}
+
+.shadow-custom {
+    box-shadow: var(--shadow-lg);
+}
+
+.transition-smooth {
+    transition: var(--transition);
+}

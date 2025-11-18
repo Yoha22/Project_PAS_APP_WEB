@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios - Sistema de Acceso</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/src/assets/css/dark-mode.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Inicializar tema antes de que se cargue la página para evitar flash
+        (function() {
+            const savedTheme = localStorage.getItem('darkMode');
+            const isDark = savedTheme === 'true' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <nav class="bg-white dark:bg-gray-800 shadow-lg mb-8">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold dark:text-white">Sistema de Acceso</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer">
+                        <i class="fas fa-moon dark:fa-sun text-gray-800 dark:text-yellow-400" id="themeIcon"></i>
+                    </button>
+                    <a href="/dashboard.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Dashboard</a>
+                    <a href="/usuarios.html" class="text-blue-600 dark:text-blue-400 font-bold">Usuarios</a>
+                    <a href="/dispositivos.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Dispositivos</a>
+                    <a href="/historial.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Historial</a>
+                    <a href="/alarmas.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Alarmas</a>
+                    <a href="/config-esp32.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400" title="Configurar IP del ESP32">
+                        <i class="fas fa-cog"></i>
+                    </a>
+                    <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                        Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold dark:text-white">Usuarios</h2>
+            <button id="addUserBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <i class="fas fa-plus mr-2"></i>Agregar Usuario
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-blue-300 dark:bg-blue-700 text-white">
+                    <tr>
+                        <th class="px-6 py-3">ID</th>
+                        <th class="px-6 py-3">Nombre</th>
+                        <th class="px-6 py-3">Huella Digital</th>
+                        <th class="px-6 py-3">Cédula</th>
+                        <th class="px-6 py-3">Celular</th>
+                        <th class="px-6 py-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="usuariosTable" class="dark:bg-gray-800">
+                    <tr class="dark:bg-gray-800">
+                        <td colspan="6" class="text-center py-4 dark:text-gray-200">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pagination" class="mt-4 flex justify-center"></div>
+    </div>
+
+    <!-- Modal Agregar/Editar Usuario -->
+    <div id="userModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-2xl font-bold mb-4 dark:text-white" id="modalTitle">Agregar Usuario</h3>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">Nombre</label>
+                    <input type="text" id="nombre" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">Cédula</label>
+                    <input type="text" id="cedula" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">Celular</label>
+                    <input type="text" id="celular" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-fingerprint mr-1"></i>Huella Digital
+                    </label>
+                    <div class="flex items-center space-x-2 mb-2">
+                        <button type="button" id="capturarHuella" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <i class="fas fa-hand-pointer mr-2"></i>Capturar
+                        </button>
+                        <a href="/config-esp32.html" class="text-xs text-blue-600 hover:text-blue-800" title="Configurar IP del ESP32">
+                            <i class="fas fa-cog"></i>
+                        </a>
+                        <span id="huellaStatus" class="text-xs text-gray-500 dark:text-gray-400"></span>
+                    </div>
+                    <input type="number" id="huella_digital" name="huella_digital" 
+                           class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                           placeholder="O ingresa el ID manualmente (opcional)" min="0">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Opcional: Captura desde el dispositivo o ingresa el ID manualmente
+                    </p>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="cancelBtn" class="bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { authService } from '../src/services/auth.js';
+        import { usuariosService } from '../src/services/usuarios.js';
+        import { themeService } from '../src/services/theme.js';
+
+        // Script simple para toggle de tema
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const body = document.body;
+            const isDark = html.classList.contains('dark');
+            
+            if (isDark) {
+                html.classList.remove('dark');
+                body.classList.remove('active');
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('darkMode', 'false');
+            } else {
+                html.classList.add('dark');
+                body.classList.add('active');
+                html.setAttribute('data-theme', 'dark');
+                localStorage.setItem('darkMode', 'true');
+            }
+            
+            updateThemeIcon();
+            console.log('Tema cambiado a:', isDark ? 'claro' : 'oscuro');
+        };
+        
+        window.updateThemeIcon = function() {
+            const themeIcon = document.getElementById('themeIcon');
+            if (!themeIcon) return;
+            
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        };
+        
+        // Configurar cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                window.updateThemeIcon();
+                themeService.init();
+            });
+        } else {
+            window.updateThemeIcon();
+            themeService.init();
+        }
+
+        if (!authService.isAuthenticated()) {
+            window.location.href = '/login.html';
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            authService.logout();
+        });
+
+        let currentPage = 1;
+
+        async function loadUsuarios(page = 1) {
+            try {
+                const response = await usuariosService.getAll(page, 5);
+                if (response.success) {
+                    renderUsuarios(response.data.data);
+                    renderPagination(response.data);
+                }
+            } catch (error) {
+                console.error('Error cargando usuarios:', error);
+            }
+        }
+
+        function renderUsuarios(usuarios) {
+            const tbody = document.getElementById('usuariosTable');
+            if (usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No hay usuarios</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = usuarios.map(usuario => `
+                <tr class="border-b">
+                    <td class="px-6 py-3">${usuario.id}</td>
+                    <td class="px-6 py-3">${usuario.nombre}</td>
+                    <td class="px-6 py-3">${usuario.huella_digital}</td>
+                    <td class="px-6 py-3">${usuario.cedula || '-'}</td>
+                    <td class="px-6 py-3">${usuario.celular || '-'}</td>
+                    <td class="px-6 py-3">
+                        <button onclick="editUser(${usuario.id})" class="bg-blue-500 text-white px-2 py-1 rounded mr-2">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button onclick="deleteUser(${usuario.id})" class="bg-red-500 text-white px-2 py-1 rounded">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPagination(pagination) {
+            const paginationDiv = document.getElementById('pagination');
+            let html = '';
+            for (let i = 1; i <= pagination.last_page; i++) {
+                html += `<button onclick="loadPage(${i})" class="px-4 py-2 mx-1 rounded ${i === pagination.current_page ? 'bg-blue-500 text-white' : 'bg-gray-200'}">${i}</button>`;
+            }
+            paginationDiv.innerHTML = html;
+        }
+
+        window.loadPage = (page) => {
+            currentPage = page;
+            loadUsuarios(page);
+        };
+
+        window.editUser = async (id) => {
+            try {
+                const response = await usuariosService.getById(id);
+                if (response.success) {
+                    const usuario = response.data;
+                    document.getElementById('userId').value = usuario.id;
+                    document.getElementById('nombre').value = usuario.nombre;
+                    document.getElementById('cedula').value = usuario.cedula || '';
+                    document.getElementById('celular').value = usuario.celular || '';
+                    // No mostrar la huella en edición (solo lectura o no editable)
+                    limpiarHuella();
+                    document.getElementById('huella_digital').placeholder = 'La huella no se puede editar';
+                    document.getElementById('capturarHuella').disabled = true;
+                    document.getElementById('modalTitle').textContent = 'Editar Usuario';
+                    document.getElementById('userModal').classList.remove('hidden');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'No se pudo cargar el usuario', 'error');
+            }
+        };
+
+        window.deleteUser = async (id) => {
+            const result = await Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Esta acción no se puede deshacer',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    await usuariosService.delete(id);
+                    Swal.fire('Éxito', 'Usuario eliminado', 'success');
+                    loadUsuarios(currentPage);
+                } catch (error) {
+                    Swal.fire('Error', 'No se pudo eliminar el usuario', 'error');
+                }
+            }
+        };
+
+        // Limpiar campo de huella
+        function limpiarHuella() {
+            const huellaInput = document.getElementById('huella_digital');
+            huellaInput.value = '';
+            huellaInput.type = 'number'; // Asegurar que sea tipo number
+            document.getElementById('huellaStatus').textContent = '';
+            document.getElementById('huellaStatus').className = 'text-xs text-gray-500 dark:text-gray-400';
+        }
+
+        // Capturar huella desde dispositivo ESP32
+        document.getElementById('capturarHuella').addEventListener('click', async function() {
+            const btn = this;
+            const status = document.getElementById('huellaStatus');
+            const huellaInput = document.getElementById('huella_digital');
+            
+            // Deshabilitar el botón mientras se captura
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Capturando...';
+            status.textContent = 'Esperando huella...';
+            status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+            
+            // Importar configuración ESP32
+            const { esp32Config } = await import('../src/utils/esp32Config.js');
+            const ESP32_URL = esp32Config.getRegisterUrl();
+            
+            try {
+                // Crear un AbortController para timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch(ESP32_URL, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.text();
+                    
+                    // Si la respuesta contiene un ID de huella
+                    if (data && data.trim() !== '') {
+                        const idHuella = data.trim();
+                        
+                        // Guardar la huella temporalmente en la API
+                        try {
+                            const { huellasService } = await import('../src/services/huellas.js');
+                            const result = await huellasService.register({ idHuella: parseInt(idHuella) });
+                            
+                            if (result.success) {
+                                huellaInput.value = idHuella;
+                                status.textContent = '✓ Huella capturada y registrada';
+                                status.className = 'text-xs text-green-600 dark:text-green-400';
+                            } else {
+                                // Aún así guardar el ID
+                                huellaInput.value = idHuella;
+                                status.textContent = '✓ Huella capturada (no registrada en API)';
+                                status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+                            }
+                        } catch (apiError) {
+                            // Si falla la API, guardar el ID capturado
+                            huellaInput.value = idHuella;
+                            status.textContent = '✓ Huella capturada (ID: ' + idHuella + ')';
+                            status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+                            console.warn('Error al registrar en API:', apiError);
+                        }
+                    } else {
+                        status.textContent = 'Huella capturada (sin ID)';
+                        status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+                    }
+                } else {
+                    throw new Error('Error en la respuesta del servidor');
+                }
+            } catch (error) {
+                console.error('No se pudo conectar con el ESP32:', error);
+                status.textContent = '✗ Error al capturar';
+                status.className = 'text-xs text-red-600 dark:text-red-400';
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Advertencia',
+                    text: 'No se pudo conectar con el dispositivo de huellas. Puedes agregar el usuario sin huella o ingresar el ID manualmente.',
+                    timer: 4000,
+                    showConfirmButton: false
+                });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-hand-pointer mr-2"></i>Capturar';
+            }
+        });
+
+        document.getElementById('addUserBtn').addEventListener('click', () => {
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            limpiarHuella();
+            document.getElementById('huella_digital').placeholder = 'O ingresa el ID manualmente (opcional)';
+            document.getElementById('capturarHuella').disabled = false;
+            document.getElementById('modalTitle').textContent = 'Agregar Usuario';
+            document.getElementById('userModal').classList.remove('hidden');
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            document.getElementById('userModal').classList.add('hidden');
+            limpiarHuella();
+        });
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                nombre: document.getElementById('nombre').value,
+                cedula: document.getElementById('cedula').value,
+                celular: document.getElementById('celular').value,
+            };
+
+            // Agregar huella digital si existe
+            const huellaDigital = document.getElementById('huella_digital').value.trim();
+            if (huellaDigital && huellaDigital !== '0') {
+                formData.huella_digital = parseInt(huellaDigital);
+            }
+
+            try {
+                const userId = document.getElementById('userId').value;
+                if (userId) {
+                    await usuariosService.update(userId, formData);
+                    Swal.fire('Éxito', 'Usuario actualizado', 'success');
+                } else {
+                    await usuariosService.create(formData);
+                    Swal.fire('Éxito', 'Usuario creado', 'success');
+                }
+                document.getElementById('userModal').classList.add('hidden');
+                limpiarHuella();
+                loadUsuarios(currentPage);
+            } catch (error) {
+                Swal.fire('Error', error.response?.data?.message || 'Error al guardar', 'error');
+            }
+        });
+
+        loadUsuarios();
+    </script>
+</body>
+</html>
+

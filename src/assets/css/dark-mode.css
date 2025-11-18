@@ -1,0 +1,175 @@
+/* Estilos para modo oscuro - Forzar aplicación cuando la clase dark esté presente */
+
+html.dark,
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Fondo del body */
+html.dark body,
+html[data-theme="dark"] body,
+body.active {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+/* Navbar */
+html.dark nav,
+html[data-theme="dark"] nav,
+body.active nav {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html.dark nav a,
+html[data-theme="dark"] nav a,
+body.active nav a {
+  color: #d1d5db !important;
+}
+
+html.dark nav a:hover,
+html[data-theme="dark"] nav a:hover,
+body.active nav a:hover {
+  color: #60a5fa !important;
+}
+
+html.dark nav h1,
+html[data-theme="dark"] nav h1,
+body.active nav h1 {
+  color: #f9fafb !important;
+}
+
+/* Cards y contenedores blancos */
+html.dark .bg-white,
+html[data-theme="dark"] .bg-white,
+body.active .bg-white {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #374151 !important;
+}
+
+/* Cards de colores */
+html.dark .bg-blue-200,
+html[data-theme="dark"] .bg-blue-200,
+body.active .bg-blue-200 {
+  background-color: #1e3a8a !important;
+  color: #f9fafb !important;
+}
+
+html.dark .bg-pink-200,
+html[data-theme="dark"] .bg-pink-200,
+body.active .bg-pink-200 {
+  background-color: #831843 !important;
+  color: #f9fafb !important;
+}
+
+html.dark .bg-green-200,
+html[data-theme="dark"] .bg-green-200,
+body.active .bg-green-200 {
+  background-color: #14532d !important;
+  color: #f9fafb !important;
+}
+
+/* Tablas */
+html.dark table,
+html[data-theme="dark"] table,
+body.active table {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html.dark thead,
+html[data-theme="dark"] thead,
+body.active thead {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+html.dark tbody tr,
+html[data-theme="dark"] tbody tr,
+body.active tbody tr {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html.dark tbody tr:hover,
+html[data-theme="dark"] tbody tr:hover,
+body.active tbody tr:hover {
+  background-color: #374151 !important;
+}
+
+html.dark tbody td,
+html[data-theme="dark"] tbody td,
+body.active tbody td {
+  color: #f9fafb !important;
+}
+
+/* Inputs */
+html.dark input,
+html[data-theme="dark"] input,
+body.active input {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html.dark input::placeholder,
+html[data-theme="dark"] input::placeholder,
+body.active input::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Labels */
+html.dark label,
+html[data-theme="dark"] label,
+body.active label {
+  color: #f9fafb !important;
+}
+
+/* Textos */
+html.dark .text-gray-700,
+html.dark .text-gray-900,
+html[data-theme="dark"] .text-gray-700,
+html[data-theme="dark"] .text-gray-900,
+body.active .text-gray-700,
+body.active .text-gray-900 {
+  color: #f9fafb !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-600,
+html[data-theme="dark"] .text-gray-500,
+html[data-theme="dark"] .text-gray-600,
+body.active .text-gray-500,
+body.active .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+/* Títulos */
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+body.active h1,
+body.active h2,
+body.active h3 {
+  color: #f9fafb !important;
+}
+
+/* Modales */
+html.dark .bg-opacity-50,
+html[data-theme="dark"] .bg-opacity-50,
+body.active .bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Paginación */
+html.dark .bg-gray-200,
+html[data-theme="dark"] .bg-gray-200,
+body.active .bg-gray-200 {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
