@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // En desarrollo, usar el proxy de Vite para evitar problemas de CORS
-// En producción, usar la variable de entorno o la URL del backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:8000/api');
+// En producción, usar la variable de entorno VITE_API_URL
+const API_BASE_URL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api` 
+  : (import.meta.env.DEV ? '/api' : 'https://project-pas-api.onrender.com/api');
 
 // Crear instancia de axios
 const apiClient = axios.create({
