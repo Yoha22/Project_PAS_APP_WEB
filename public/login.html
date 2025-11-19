@@ -369,6 +369,28 @@
                 }
             } catch (error) {
                 console.error('Error completo:', error);
+                console.error('Detalles del error:', {
+                    message: error.message,
+                    code: error.code,
+                    response: error.response ? {
+                        status: error.response.status,
+                        statusText: error.response.statusText,
+                        data: error.response.data
+                    } : null,
+                    request: error.request ? {
+                        responseURL: error.request.responseURL,
+                        status: error.request.status
+                    } : null,
+                    config: error.config ? {
+                        method: error.config.method,
+                        url: error.config.url,
+                        baseURL: error.config.baseURL,
+                        fullURL: error.config.baseURL 
+                            ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
+                            : error.config.url
+                    } : null
+                });
+                
                 let errorMessage = 'Ocurrió un error al procesar la solicitud';
                 
                 if (error.response) {
@@ -378,7 +400,16 @@
                         || `Error ${error.response.status}: ${error.response.statusText}`;
                 } else if (error.request) {
                     // La petición se hizo pero no hubo respuesta
-                    errorMessage = 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.';
+                    const attemptedURL = error.config?.baseURL 
+                        ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
+                        : error.config?.url || 'URL desconocida';
+                    
+                    console.error('❌ No se recibió respuesta del servidor');
+                    console.error('URL intentada:', attemptedURL);
+                    console.error('Base URL configurada:', apiClient.defaults?.baseURL);
+                    console.error('VITE_API_URL:', import.meta.env.VITE_API_URL || 'NO DEFINIDA');
+                    
+                    errorMessage = `No se pudo conectar con el servidor en: ${attemptedURL}. Verifica que el backend esté corriendo y que VITE_API_URL esté configurada correctamente.`;
                 } else {
                     // Error al configurar la petición
                     errorMessage = error.message || errorMessage;

@@ -26,6 +26,17 @@ apiClient.interceptors.request.use(
       config.url = config.url.substring(1);
     }
     
+    // Construir la URL final para logging
+    const finalURL = config.baseURL 
+      ? `${config.baseURL}${config.url ? '/' + config.url : ''}`.replace(/\/+/g, '/').replace(':/', '://')
+      : config.url;
+    
+    // Logging siempre para debugging (especialmente si VITE_API_URL no está definida)
+    console.log(`🌐 Petición API: ${config.method?.toUpperCase()} ${finalURL}`);
+    if (!import.meta.env.VITE_API_URL && !import.meta.env.DEV) {
+      console.warn('⚠️ VITE_API_URL no está definida. Usando fallback:', config.baseURL);
+    }
+    
     // Agregar token a las peticiones
     const token = localStorage.getItem('auth_token');
     if (token) {
