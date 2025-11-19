@@ -50,14 +50,46 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Interceptor para manejar errores de autenticación
+// Interceptor para manejar respuestas y errores
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Logging de respuestas exitosas
+    console.log(`✅ Respuesta API recibida: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data
+    });
+    return response;
+  },
   (error) => {
+    // Logging detallado de errores
+    console.error('❌ Error en interceptor de respuesta:', {
+      message: error.message,
+      code: error.code,
+      response: error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      } : null,
+      request: error.request ? {
+        status: error.request.status,
+        readyState: error.request.readyState,
+        responseURL: error.request.responseURL
+      } : null,
+      config: error.config ? {
+        method: error.config.method,
+        url: error.config.url,
+        baseURL: error.config.baseURL
+      } : null
+    });
+    
+    // Manejar errores de autenticación
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
       window.location.href = '/login.html';
     }
+    
     return Promise.reject(error);
   }
 );

@@ -16,12 +16,27 @@ export const authService = {
 
   async login(data) {
     try {
+      console.log('🔐 Iniciando login con datos:', { correo: data.correo, password: '***' });
       const response = await apiClient.post('/auth/login', data);
-      if (response.data.success && response.data.data.token) {
+      console.log('✅ Respuesta de login recibida:', response);
+      console.log('📦 Datos de respuesta:', response.data);
+      
+      if (response.data && response.data.success && response.data.data && response.data.data.token) {
         localStorage.setItem('auth_token', response.data.data.token);
+        console.log('🔑 Token guardado en localStorage');
+      } else {
+        console.warn('⚠️ La respuesta no contiene el formato esperado:', response.data);
       }
+      
       return response.data;
     } catch (error) {
+      console.error('❌ Error en authService.login:', error);
+      console.error('Detalles del error:', {
+        message: error.message,
+        response: error.response,
+        request: error.request,
+        config: error.config
+      });
       // Propagar el error para que login.html pueda manejarlo
       throw error;
     }
