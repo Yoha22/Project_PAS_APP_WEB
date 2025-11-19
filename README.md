@@ -50,12 +50,18 @@ Este proyecto está configurado para desplegarse con **Docker** en Render usando
    - Conecta tu repositorio de Git
    - Render detectará automáticamente el archivo `render.yaml`
 
-2. **Configurar variables de entorno:**
+2. **Configurar variables de entorno (CRÍTICO):**
    - En la configuración del servicio, ve a "Environment"
    - Agrega la variable de entorno:
      - **Key:** `VITE_API_URL`
      - **Value:** URL de tu backend API (ej: `https://project-pas-api.onrender.com`)
-     - **Importante:** No incluyas `/api` al final, se agrega automáticamente
+     - **Importante:** 
+       - No incluyas `/api` al final, se agrega automáticamente
+       - Esta variable DEBE estar configurada ANTES del build, ya que se usa durante la compilación
+       - Render pasará automáticamente esta variable como build arg al Dockerfile
+   - **Verificación:** Después del build, revisa los logs. Deberías ver:
+     - `✅ VITE_API_URL recibida: https://project-pas-api.onrender.com`
+     - Si ves `⚠️ ADVERTENCIA: VITE_API_URL no está definida`, la variable no se configuró correctamente
 
 3. **Desplegar:**
    - Render construirá la imagen Docker y desplegará automáticamente
@@ -74,8 +80,10 @@ Si prefieres configurar manualmente:
    - **Runtime:** Docker
    - **Dockerfile Path:** `./Dockerfile`
    - **Docker Context:** `.`
-   - **Environment Variables:**
+   - **Environment Variables (CRÍTICO - Configurar ANTES del primer build):**
      - `VITE_API_URL` = `https://project-pas-api.onrender.com` (sin `/api`)
+     - **Nota:** Esta variable se pasa como build arg durante la compilación de Docker
+     - Si no la configuras, el build usará el fallback: `https://project-pas-api.onrender.com/api`
 
 3. **Desplegar:**
    - Haz clic en "Create Web Service"
@@ -137,6 +145,40 @@ El Dockerfile usa un **multi-stage build**:
    - Configura Nginx para servir archivos estáticos
    - Maneja SPA routing (todas las rutas redirigen a index.html)
 
+### Troubleshooting
+
+#### Problema: Las peticiones van al dominio incorrecto
+
+**Síntomas:**
+- Las peticiones van a `sistema-acceso-frontend.onrender.com/api/...` en lugar de `project-pas-api.onrender.com/api/...`
+- Error 405 Not Allowed en las peticiones
+- En la consola del navegador: `VITE_API_URL: ❌ NO DEFINIDA`
+
+**Solución:**
+1. Verifica que `VITE_API_URL` esté configurada en Render > Environment
+2. Revisa los logs del build en Render. Deberías ver:
+   - `✅ VITE_API_URL recibida: https://project-pas-api.onrender.com`
+3. Si ves `⚠️ ADVERTENCIA: VITE_API_URL no está definida`:
+   - Ve a Render > Tu servicio > Environment
+   - Agrega la variable `VITE_API_URL` con el valor `https://project-pas-api.onrender.com`
+   - Haz un nuevo deploy (Render reconstruirá la imagen)
+4. Abre la consola del navegador y verifica el diagnóstico:
+   - Deberías ver un grupo `📊 Diagnóstico de Variables de Entorno`
+   - `VITE_API_URL` debe mostrar tu URL, no "❌ NO DEFINIDA"
+
+#### Problema: La API está inactiva (normal en Render free tier)
+
+**Síntomas:**
+- Error de red al cargar la página
+- "No se recibió respuesta del servidor" en la consola
+- La primera petición falla, pero luego funciona
+
+**Solución:**
+- Esto es normal en el plan gratuito de Render
+- La API se "duerme" después de 15 minutos de inactividad
+- La primera petición puede tardar 30-60 segundos en "despertar" la API
+- No es un error, solo espera unos segundos y recarga
+
 ### Notas Importantes
 
 - El proxy de Vite (`/api`) solo funciona en desarrollo. En producción, todas las peticiones usan `VITE_API_URL`
@@ -144,4 +186,5 @@ El Dockerfile usa un **multi-stage build**:
 - Nginx está configurado para manejar rutas SPA correctamente (todas las rutas redirigen a index.html)
 - Los archivos estáticos tienen cache configurado para mejor rendimiento
 - El servicio Docker en Render puede tardar unos segundos en "despertar" si no ha recibido tráfico reciente
+- **VITE_API_URL debe configurarse ANTES del build**, ya que se usa durante la compilación de Docker
 

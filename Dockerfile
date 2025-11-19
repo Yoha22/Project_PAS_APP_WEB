@@ -13,9 +13,19 @@ RUN npm ci
 COPY . .
 
 # Argumento para la URL de la API (se pasa en tiempo de build)
-# Render pasa las variables de entorno como build args automáticamente
+# IMPORTANTE: En Render, las variables de entorno se pasan como build args automáticamente
+# si están configuradas en el panel de Environment
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
+
+# Verificar que la variable se recibió (para debugging)
+RUN if [ -z "$VITE_API_URL" ]; then \
+        echo "⚠️ ADVERTENCIA: VITE_API_URL no está definida como build arg"; \
+        echo "   Esto significa que la variable no se pasó durante el build"; \
+        echo "   Verifica que VITE_API_URL esté configurada en Render > Environment"; \
+    else \
+        echo "✅ VITE_API_URL recibida: $VITE_API_URL"; \
+    fi
 
 # Compilar la aplicación
 RUN npm run build
