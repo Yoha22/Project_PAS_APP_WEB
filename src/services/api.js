@@ -37,10 +37,19 @@ apiClient.interceptors.request.use(
       console.warn('⚠️ VITE_API_URL no está definida. Usando fallback:', config.baseURL);
     }
     
-    // Agregar token a las peticiones
+    // Agregar token a las peticiones si existe
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Token agregado a la petición');
+    } else {
+      // Si no hay token y la ruta requiere autenticación, loguear advertencia
+      const requiresAuth = !config.url.includes('/auth/check-admin') && 
+                          !config.url.includes('/auth/register') && 
+                          !config.url.includes('/auth/login');
+      if (requiresAuth) {
+        console.warn('⚠️ Petición sin token de autenticación:', config.url);
+      }
     }
     
     return config;
@@ -86,8 +95,14 @@ apiClient.interceptors.response.use(
     
     // Manejar errores de autenticación
     if (error.response?.status === 401) {
+      console.warn('🔒 Error 401: Token inválido o expirado');
       localStorage.removeItem('auth_token');
-      window.location.href = '/login.html';
+      
+      // Solo redirigir si no estamos ya en la página de login
+      if (!window.location.pathname.includes('login.html')) {
+        console.log('🔄 Redirigiendo a login...');
+        window.location.href = '/login.html';
+      }
     }
     
     return Promise.reject(error);

@@ -1,6 +1,16 @@
 import apiClient from './api.js';
 
 export const authService = {
+  async checkAdmin() {
+    try {
+      const response = await apiClient.get('/auth/check-admin');
+      return response.data;
+    } catch (error) {
+      console.error('Error verificando administrador:', error);
+      throw error;
+    }
+  },
+
   async register(data) {
     try {
       const response = await apiClient.post('/auth/register', data);
@@ -54,12 +64,36 @@ export const authService = {
   },
 
   async me() {
-    const response = await apiClient.get('/auth/me');
-    return response.data;
+    try {
+      const response = await apiClient.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      // Si falla la autenticación, limpiar token
+      if (error.response?.status === 401) {
+        localStorage.removeItem('auth_token');
+      }
+      throw error;
+    }
   },
 
   isAuthenticated() {
     return !!localStorage.getItem('auth_token');
+  },
+
+  getToken() {
+    return localStorage.getItem('auth_token');
+  },
+
+  setToken(token) {
+    if (token) {
+      localStorage.setItem('auth_token', token);
+    } else {
+      localStorage.removeItem('auth_token');
+    }
+  },
+
+  clearToken() {
+    localStorage.removeItem('auth_token');
   },
 };
 

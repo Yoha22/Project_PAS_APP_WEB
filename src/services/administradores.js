@@ -11,6 +11,11 @@ export const administradoresService = {
     return response.data;
   },
 
+  async create(data) {
+    const response = await apiClient.post('/administradores', data);
+    return response.data;
+  },
+
   async update(id, data) {
     const response = await apiClient.put(`/administradores/${id}`, data);
     return response.data;
