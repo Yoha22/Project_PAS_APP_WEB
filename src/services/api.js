@@ -1,10 +1,25 @@
 import axios from 'axios';
 
-// En desarrollo, usar el proxy de Vite para evitar problemas de CORS
-// En producción, usar la variable de entorno VITE_API_URL
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api` 
-  : (import.meta.env.DEV ? '/api' : 'https://project-pas-api.onrender.com/api');
+// Configuración de la URL base de la API
+// En desarrollo: usar el proxy de Vite (/api) para evitar problemas de CORS
+// En producción: usar directamente la URL de la API en Render
+// La variable VITE_API_URL es opcional y solo se usa si está definida
+const getApiBaseUrl = () => {
+  // Si está definida la variable de entorno, usarla (útil para override en diferentes entornos)
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL}/api`;
+  }
+  
+  // En desarrollo, usar el proxy de Vite
+  if (import.meta.env.DEV) {
+    return '/api';
+  }
+  
+  // En producción, usar la URL de la API en Render (valor por defecto)
+  return 'https://project-pas-api.onrender.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Crear instancia de axios
 const apiClient = axios.create({
@@ -31,11 +46,8 @@ apiClient.interceptors.request.use(
       ? `${config.baseURL}${config.url ? '/' + config.url : ''}`.replace(/\/+/g, '/').replace(':/', '://')
       : config.url;
     
-    // Logging siempre para debugging (especialmente si VITE_API_URL no está definida)
+    // Logging siempre para debugging
     console.log(`🌐 Petición API: ${config.method?.toUpperCase()} ${finalURL}`);
-    if (!import.meta.env.VITE_API_URL && !import.meta.env.DEV) {
-      console.warn('⚠️ VITE_API_URL no está definida. Usando fallback:', config.baseURL);
-    }
     
     // Agregar token a las peticiones si existe
     const token = localStorage.getItem('auth_token');

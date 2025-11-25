@@ -6,9 +6,9 @@ services:
     dockerContext: .
     plan: starter
     envVars:
-      - key: VITE_API_URL
-        sync: false
-        # IMPORTANTE: Configura esta variable en Render > Environment
-        # Ejemplo: https://project-pas-api.onrender.com
-        # (sin /api al final, se agrega automáticamente)
+      # VITE_API_URL es OPCIONAL - el código ya tiene la URL de producción por defecto
+      # Solo configúrala si necesitas usar una URL diferente
+      # - key: VITE_API_URL
+      #   sync: false
+      #   value: https://project-pas-api.onrender.com
 
