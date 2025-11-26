@@ -31,11 +31,21 @@ export const authService = {
       console.log('✅ Respuesta de login recibida:', response);
       console.log('📦 Datos de respuesta:', response.data);
       
+      // Verificar y guardar el token
       if (response.data && response.data.success && response.data.data && response.data.data.token) {
-        localStorage.setItem('auth_token', response.data.data.token);
+        const token = response.data.data.token;
+        localStorage.setItem('auth_token', token);
         console.log('🔑 Token guardado en localStorage');
+        console.log('🔑 Token verificado después de guardar:', !!localStorage.getItem('auth_token'));
+        console.log('🔑 Primeros 20 caracteres del token:', token.substring(0, 20) + '...');
       } else {
         console.warn('⚠️ La respuesta no contiene el formato esperado:', response.data);
+        console.warn('⚠️ Estructura de respuesta:', {
+          hasData: !!response.data,
+          hasSuccess: !!response.data?.success,
+          hasDataData: !!response.data?.data,
+          hasToken: !!response.data?.data?.token
+        });
       }
       
       return response.data;

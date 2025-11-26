@@ -28,7 +28,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  withCredentials: false, // Necesario para enviar cookies (CSRF token)
+  withCredentials: false, // NO usamos cookies, solo Bearer Token
 });
 
 // Interceptor para asegurar que las rutas siempre usen el baseURL

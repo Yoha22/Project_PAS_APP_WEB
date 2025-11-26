@@ -127,9 +127,19 @@
         }
 
         // Verificar autenticación
+        console.log('🔍 Verificando autenticación en dashboard...');
+        console.log('🔑 Token en localStorage:', !!localStorage.getItem('auth_token'));
+        console.log('🔑 Token completo:', localStorage.getItem('auth_token') ? localStorage.getItem('auth_token').substring(0, 20) + '...' : 'No hay token');
+        console.log('✅ authService.isAuthenticated():', authService.isAuthenticated());
+        
         if (!authService.isAuthenticated()) {
+            console.warn('⚠️ Usuario no autenticado, redirigiendo a login...');
             window.location.href = '/login.html';
+            // Detener ejecución para evitar errores
+            throw new Error('Usuario no autenticado');
         }
+        
+        console.log('✅ Usuario autenticado, cargando dashboard...');
 
         // Logout
         document.getElementById('logoutBtn').addEventListener('click', () => {

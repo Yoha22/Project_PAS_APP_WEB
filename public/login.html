@@ -350,21 +350,37 @@
                     result = await authService.login(formData);
                 }
 
-                if (result.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: result.message,
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = '/dashboard.html';
-                    });
+                console.log('✅ Resultado del login/registro:', result);
+                console.log('✅ result.success:', result?.success);
+                console.log('✅ Token guardado:', !!localStorage.getItem('auth_token'));
+
+                if (result && result.success) {
+                    console.log('✅ Login exitoso, mostrando mensaje y redirigiendo...');
+                    
+                    // Mostrar mensaje de éxito
+                    try {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Éxito',
+                            text: result.message || 'Operación exitosa',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } catch (swalError) {
+                        console.warn('⚠️ Error con SweetAlert, continuando con redirección:', swalError);
+                    }
+                    
+                    // Redirigir al dashboard
+                    console.log('🔄 Redirigiendo a dashboard...');
+                    window.location.href = '/dashboard.html';
                 } else {
+                    console.error('❌ Login falló - result.success es false o undefined');
+                    console.error('Result completo:', result);
+                    
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: result.message || 'Ocurrió un error'
+                        text: result?.message || 'Ocurrió un error al iniciar sesión'
                     });
                 }
             } catch (error) {
