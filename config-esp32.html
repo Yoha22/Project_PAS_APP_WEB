@@ -29,17 +29,14 @@
 
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-bold dark:text-white">
-                    <i class="fas fa-cog mr-2"></i>Configurar Dispositivo ESP32
-                </h2>
-                <!-- Indicador de modo activo -->
-                <div id="modeIndicator" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-700">
-                    <i class="fas fa-spinner fa-spin mr-2"></i>Detectando...
-                </div>
-            </div>
+            <h2 class="text-3xl font-bold dark:text-white mb-6">
+                <i class="fas fa-cog mr-2"></i>Configurar Dispositivo ESP32
+            </h2>
 
-            <!-- Sección de configuración de IP y estado -->
+            <!-- Instrucciones -->
+            <div id="instructionsContainer"></div>
+
+            <!-- Sección de configuración de IP -->
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
                 <h3 class="text-xl font-semibold mb-4 dark:text-white">
                     <i class="fas fa-network-wired mr-2"></i>Configuración de Conexión
@@ -49,7 +46,7 @@
                     <div>
                         <label class="block text-gray-700 dark:text-gray-300 mb-2">IP del ESP32 (Modo Normal)</label>
                         <input type="text" id="esp32IP" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
-                               placeholder="192.168.40.112" required>
+                               placeholder="192.168.1.7" required>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP cuando el ESP32 está conectado a WiFi</p>
                     </div>
                     <div>
@@ -60,36 +57,15 @@
                     </div>
                 </div>
 
-                <!-- Estado de conexión -->
-                <div id="connectionStatus" class="mb-4 p-4 rounded-lg hidden">
-                    <div class="flex items-center">
-                        <i id="statusIcon" class="fas fa-circle text-gray-400 mr-2"></i>
-                        <span id="statusText" class="text-sm dark:text-gray-300">Verificando conexión...</span>
-                    </div>
-                </div>
-
-                <!-- Instrucciones para modo directo -->
-                <div id="directModeInstructions" class="hidden mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                    <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                        <i class="fas fa-info-circle mr-2"></i>Instrucciones para Configuración Directa
-                    </h4>
-                    <ol class="list-decimal list-inside text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                        <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
-                        <li>Una vez conectado, podrás configurar el ESP32 directamente sin necesidad de internet</li>
-                        <li>Haz clic en "Cargar Formulario ESP32" para comenzar</li>
-                        <li>Después de configurar, el ESP32 se reiniciará y se conectará a la red WiFi configurada</li>
-                    </ol>
-                </div>
-
                 <div class="flex flex-wrap gap-2">
-                    <button id="checkConnectionBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
-                        <i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión
+                    <button id="openPortalBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
+                        <i class="fas fa-external-link-alt mr-2"></i>Abrir Portal ESP32
+                    </button>
+                    <button id="loadIframeBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700">
+                        <i class="fas fa-window-maximize mr-2"></i>Cargar en Iframe
                     </button>
                     <button id="activateConfigModeBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">
                         <i class="fas fa-power-off mr-2"></i>Activar Modo Configuración
-                    </button>
-                    <button id="loadConfigHtmlBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700">
-                        <i class="fas fa-download mr-2"></i>Cargar Formulario ESP32
                     </button>
                     <button id="saveIPBtn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700">
                         <i class="fas fa-save mr-2"></i>Guardar IP
@@ -97,22 +73,11 @@
                 </div>
             </div>
 
-            <!-- Contenedor para el HTML del ESP32 -->
-            <div id="esp32ConfigContainer" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold dark:text-white">
-                        <i class="fas fa-microchip mr-2"></i>Formulario de Configuración del ESP32
-                    </h3>
-                    <button id="closeESP32FormBtn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-                <div id="esp32FormContent"></div>
-            </div>
+            <!-- Contenedor para iframe del ESP32 -->
+            <div id="iframeContainer" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hidden"></div>
         </div>
     </div>
 
     <script type="module" src="/src/pages/config-esp32.js"></script>
 </body>
 </html>
-
