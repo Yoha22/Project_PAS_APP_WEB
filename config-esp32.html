@@ -7,30 +7,90 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6">
-            <i class="fas fa-cog mr-2"></i>Configurar Dispositivo ESP32
-        </h2>
-        
-        <form id="configForm">
-            <div class="mb-4">
-                <label class="block text-gray-700 mb-2">IP del ESP32</label>
-                <input type="text" id="esp32IP" class="w-full border rounded px-3 py-2" 
-                       placeholder="192.168.40.112" required>
-                <p class="text-xs text-gray-500 mt-1">Ingresa la dirección IP del dispositivo de huellas</p>
-            </div>
+    <script>
+        // Inicializar tema antes de que se cargue la página para evitar flash
+        (function() {
+            const savedTheme = localStorage.getItem('darkMode');
+            const isDark = savedTheme === 'true' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
             
-            <div class="flex justify-end space-x-2">
-                <a href="/usuarios.html" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-                    Cancelar
-                </a>
-                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                    Guardar
-                </button>
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
+    <!-- Navegación será insertada por el componente Navigation.js -->
+    <div id="nav"></div>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-3xl font-bold mb-6 dark:text-white">
+                <i class="fas fa-cog mr-2"></i>Configurar Dispositivo ESP32
+            </h2>
+
+            <!-- Sección de configuración de IP y estado -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-semibold mb-4 dark:text-white">
+                    <i class="fas fa-network-wired mr-2"></i>Configuración de Conexión
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 dark:text-gray-300 mb-2">IP del ESP32 (Modo Normal)</label>
+                        <input type="text" id="esp32IP" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                               placeholder="192.168.40.112" required>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP cuando el ESP32 está conectado a WiFi</p>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 dark:text-gray-300 mb-2">IP del ESP32 (Modo Configuración)</label>
+                        <input type="text" id="esp32ConfigIP" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                               value="192.168.4.1" readonly>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP cuando el ESP32 está en modo AP (Access Point)</p>
+                    </div>
+                </div>
+
+                <!-- Estado de conexión -->
+                <div id="connectionStatus" class="mb-4 p-4 rounded-lg hidden">
+                    <div class="flex items-center">
+                        <i id="statusIcon" class="fas fa-circle text-gray-400 mr-2"></i>
+                        <span id="statusText" class="text-sm dark:text-gray-300">Verificando conexión...</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button id="checkConnectionBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
+                        <i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión
+                    </button>
+                    <button id="activateConfigModeBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">
+                        <i class="fas fa-power-off mr-2"></i>Activar Modo Configuración
+                    </button>
+                    <button id="loadConfigHtmlBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700">
+                        <i class="fas fa-download mr-2"></i>Cargar Formulario ESP32
+                    </button>
+                    <button id="saveIPBtn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700">
+                        <i class="fas fa-save mr-2"></i>Guardar IP
+                    </button>
+                </div>
             </div>
-        </form>
+
+            <!-- Contenedor para el HTML del ESP32 -->
+            <div id="esp32ConfigContainer" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold dark:text-white">
+                        <i class="fas fa-microchip mr-2"></i>Formulario de Configuración del ESP32
+                    </h3>
+                    <button id="closeESP32FormBtn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div id="esp32FormContent"></div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="/src/pages/config-esp32.js"></script>
