@@ -111,12 +111,17 @@ apiClient.interceptors.response.use(
       localStorage.removeItem('auth_token');
       
       // Solo redirigir si no estamos ya en la página de login
+      // Usar setTimeout para no bloquear la ejecución
       if (!window.location.pathname.includes('login.html')) {
         console.log('🔄 Redirigiendo a login...');
-        window.location.href = '/login.html';
+        setTimeout(() => {
+          window.location.href = '/login.html';
+        }, 100);
       }
     }
     
+    // NO rechazar la promesa de forma que detenga la ejecución
+    // Permitir que el código que llama maneje el error
     return Promise.reject(error);
   }
 );

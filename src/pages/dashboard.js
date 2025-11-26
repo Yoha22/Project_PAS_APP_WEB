@@ -52,25 +52,39 @@ if (document.readyState === 'loading') {
     themeService.init();
 }
 
-// Verificar autenticación
-console.log('🔍 Verificando autenticación en dashboard...');
-console.log('🔑 Token en localStorage:', !!localStorage.getItem('auth_token'));
-console.log('🔑 Token completo:', localStorage.getItem('auth_token') ? localStorage.getItem('auth_token').substring(0, 20) + '...' : 'No hay token');
-console.log('✅ authService.isAuthenticated():', authService.isAuthenticated());
-
-if (!authService.isAuthenticated()) {
-    console.warn('⚠️ Usuario no autenticado, redirigiendo a login...');
+// Verificar autenticación (solo si authService está disponible)
+if (!authService) {
+    console.error('❌ authService no está disponible - redirigiendo a login');
     window.location.href = '/login.html';
-    // Detener ejecución para evitar errores
-    throw new Error('Usuario no autenticado');
+} else {
+    console.log('🔍 Verificando autenticación en dashboard...');
+    console.log('🔑 Token en localStorage:', !!localStorage.getItem('auth_token'));
+    console.log('🔑 Token completo:', localStorage.getItem('auth_token') ? localStorage.getItem('auth_token').substring(0, 20) + '...' : 'No hay token');
+    console.log('✅ authService.isAuthenticated():', authService.isAuthenticated());
+
+    if (!authService.isAuthenticated()) {
+        console.warn('⚠️ Usuario no autenticado, redirigiendo a login...');
+        window.location.href = '/login.html';
+        // NO usar throw - solo redirigir
+        return; // Salir temprano para evitar errores
+    }
+
+    console.log('✅ Usuario autenticado, cargando dashboard...');
 }
 
-console.log('✅ Usuario autenticado, cargando dashboard...');
-
-// Logout
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    authService.logout();
-});
+// Logout (solo si authService está disponible)
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn && authService) {
+    logoutBtn.addEventListener('click', () => {
+        authService.logout();
+    });
+} else if (logoutBtn) {
+    // Si no hay authService, al menos redirigir manualmente
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login.html';
+    });
+}
 
 // Cargar estadísticas
 async function loadStats() {

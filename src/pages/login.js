@@ -1,6 +1,25 @@
 // Importar CSS como módulo (Vite lo procesará durante el build)
 import '/src/assets/css/dark-mode.css';
 
+// Manejo global de errores para evitar que la página quede en blanco
+window.addEventListener('error', (event) => {
+    console.error('❌ Error global capturado:', event.error);
+    console.error('Archivo:', event.filename);
+    console.error('Línea:', event.lineno, 'Columna:', event.colno);
+    console.error('Mensaje:', event.message);
+    // NO mostrar alertas que bloqueen - solo loguear
+    // La página debe seguir funcionando incluso con errores
+    // Prevenir que el error se propague y detenga la ejecución
+    event.preventDefault();
+});
+
+// Manejar errores de promesas no capturadas
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('❌ Promesa rechazada no manejada:', event.reason);
+    // NO detener la ejecución - solo loguear
+    event.preventDefault(); // Prevenir que el error se propague
+});
+
 // Los imports DEBEN estar al principio absoluto del módulo
 import { authService } from '/src/services/auth.js';
 import { themeService } from '/src/services/theme.js';
@@ -10,25 +29,13 @@ import apiClient from '/src/services/api.js';
 console.log('=== Script de login iniciado ===');
 console.log('Timestamp:', new Date().toISOString());
 
-// Manejo global de errores para evitar que la página quede en blanco
-window.addEventListener('error', (event) => {
-    console.error('❌ Error global capturado:', event.error);
-    console.error('Archivo:', event.filename);
-    console.error('Línea:', event.lineno, 'Columna:', event.colno);
-    console.error('Mensaje:', event.message);
-    // Mostrar error visualmente
-    if (event.error) {
-        alert('Error en la aplicación: ' + event.error.message);
-    }
-});
-
-// Manejar errores de promesas no capturadas
-window.addEventListener('unhandledrejection', (event) => {
-    console.error('❌ Promesa rechazada no manejada:', event.reason);
-    console.error('Detalles:', event);
-});
-
 // Verificar que los módulos se cargaron correctamente
+if (!authService || !themeService || !apiClient) {
+    console.error('❌ ERROR CRÍTICO: No se pudieron cargar los módulos necesarios');
+    console.error('La página puede no funcionar correctamente');
+    // NO detener la ejecución - dejar que la página se muestre
+}
+
 console.log('✅ Módulos cargados:', {
     authService: !!authService,
     themeService: !!themeService,
@@ -63,30 +70,31 @@ if (apiClient && apiClient.defaults) {
     console.error('❌ apiClient no está configurado correctamente');
 }
 
-// Inicializar servicio de tema
-document.addEventListener('DOMContentLoaded', () => {
-    try {
-        if (themeService) {
+// Inicializar servicio de tema (solo si está disponible)
+if (themeService) {
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
             themeService.init();
-        }
-        // Actualizar icono después de inicializar
-        setTimeout(() => {
-            const themeIcon = document.getElementById('themeIcon');
-            if (themeIcon) {
-                const isDark = document.documentElement.classList.contains('dark');
-                if (isDark) {
-                    themeIcon.classList.remove('fa-moon');
-                    themeIcon.classList.add('fa-sun');
-                } else {
-                    themeIcon.classList.remove('fa-sun');
-                    themeIcon.classList.add('fa-moon');
+            // Actualizar icono después de inicializar
+            setTimeout(() => {
+                const themeIcon = document.getElementById('themeIcon');
+                if (themeIcon) {
+                    const isDark = document.documentElement.classList.contains('dark');
+                    if (isDark) {
+                        themeIcon.classList.remove('fa-moon');
+                        themeIcon.classList.add('fa-sun');
+                    } else {
+                        themeIcon.classList.remove('fa-sun');
+                        themeIcon.classList.add('fa-moon');
+                    }
                 }
-            }
-        }, 100);
-    } catch (error) {
-        console.error('Error inicializando tema:', error);
-    }
-});
+            }, 100);
+        } catch (error) {
+            console.error('Error inicializando tema:', error);
+            // Continuar sin tema - no es crítico
+        }
+    });
+}
 
 let isRegisterMode = false;
 let checkRegisterModeExecuted = false; // Bandera para evitar ejecución duplicada
@@ -100,8 +108,11 @@ async function checkRegisterMode() {
     }
     checkRegisterModeExecuted = true;
 
-    if (!apiClient) {
-        console.error('apiClient no está disponible');
+    // Si no hay apiClient o authService, no intentar verificar
+    if (!apiClient || !authService) {
+        console.warn('⚠️ apiClient o authService no están disponibles - omitiendo verificación de modo registro');
+        console.warn('   La página seguirá funcionando en modo login por defecto');
+        isRegisterMode = false;
         return;
     }
     
@@ -155,32 +166,43 @@ async function checkRegisterMode() {
     }
 }
 
-// Manejar envío del formulario
-document.getElementById('authForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
-        correo: document.getElementById('correo').value,
-        password: document.getElementById('password').value,
-    };
-
-    if (isRegisterMode) {
-        formData.telefono = document.getElementById('telefono').value;
-        formData.codigo = document.getElementById('codigo').value;
-    }
-
-    const submitBtn = document.getElementById('submitBtn');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
-
-    try {
-        let result;
-        if (isRegisterMode) {
-            result = await authService.register(formData);
-        } else {
-            result = await authService.login(formData);
+// Manejar envío del formulario (solo si authService está disponible)
+const authForm = document.getElementById('authForm');
+if (authForm && authService) {
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!authService) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Los servicios de autenticación no están disponibles. Por favor, recarga la página.'
+            });
+            return;
         }
+        
+        const formData = {
+            correo: document.getElementById('correo').value,
+            password: document.getElementById('password').value,
+        };
+
+        if (isRegisterMode) {
+            formData.telefono = document.getElementById('telefono').value;
+            formData.codigo = document.getElementById('codigo').value;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
+
+        try {
+            let result;
+            if (isRegisterMode) {
+                result = await authService.register(formData);
+            } else {
+                result = await authService.login(formData);
+            }
 
         console.log('✅ Resultado del login/registro:', result);
         console.log('✅ result.success:', result?.success);
@@ -275,15 +297,34 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
 });
 
 // Inicializar después de que el DOM esté listo (solo una vez)
-if (document.readyState === 'loading') {
-    // DOM aún no está listo, esperar al evento
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM cargado, ejecutando checkRegisterMode...');
-        checkRegisterMode();
-    });
-} else {
-    // DOM ya está listo, ejecutar inmediatamente
-    console.log('DOM ya está listo, ejecutando checkRegisterMode...');
-    checkRegisterMode();
+// Usar try-catch para asegurar que los errores no detengan la carga de la página
+function initializePage() {
+    try {
+        if (document.readyState === 'loading') {
+            // DOM aún no está listo, esperar al evento
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM cargado, ejecutando checkRegisterMode...');
+                // Ejecutar checkRegisterMode de forma segura
+                checkRegisterMode().catch(err => {
+                    console.warn('⚠️ Error en checkRegisterMode (no crítico):', err);
+                    // Continuar - la página debe funcionar en modo login por defecto
+                });
+            });
+        } else {
+            // DOM ya está listo, ejecutar inmediatamente
+            console.log('DOM ya está listo, ejecutando checkRegisterMode...');
+            // Ejecutar checkRegisterMode de forma segura
+            checkRegisterMode().catch(err => {
+                console.warn('⚠️ Error en checkRegisterMode (no crítico):', err);
+                // Continuar - la página debe funcionar en modo login por defecto
+            });
+        }
+    } catch (error) {
+        console.error('❌ Error inicializando página:', error);
+        // NO detener la ejecución - la página debe seguir funcionando
+    }
 }
+
+// Inicializar la página
+initializePage();
 
