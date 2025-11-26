@@ -37,10 +37,12 @@ FROM nginx:alpine
 # Copiar todo el contenido de dist (incluye public/ y assets/)
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Si los HTML están en dist/public/, crear enlaces simbólicos o copiar a la raíz
+# Copiar los HTML compilados desde dist/public/ a la raíz
 # Esto permite acceder a /login.html en lugar de /public/login.html
 RUN if [ -d /usr/share/nginx/html/public ]; then \
         cp -r /usr/share/nginx/html/public/*.html /usr/share/nginx/html/ 2>/dev/null || true; \
+        # Eliminar la carpeta public después de copiar los HTML para evitar confusión
+        rm -rf /usr/share/nginx/html/public || true; \
     fi
 
 # Copiar configuración de Nginx
