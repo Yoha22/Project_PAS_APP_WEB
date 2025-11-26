@@ -8,6 +8,7 @@ import { themeService } from '/src/services/theme.js';
 import { huellasService } from '/src/services/huellas.js';
 import { esp32Config } from '/src/utils/esp32Config.js';
 import { showLoading, hideLoading, showTableLoading, handleError, isValidCedula, isValidPhone } from '/src/utils/ui-helpers.js';
+import { initNavigation } from '/src/components/Navigation.js';
 
 // Log inicial
 console.log('=== Script de usuarios iniciado ===');
@@ -34,60 +35,18 @@ if (!authService || !authService.isAuthenticated()) {
 
 // Función para inicializar la página
 function initializeUsuarios() {
+    // Inicializar navegación
+    initNavigation('usuarios');
+    
     // Configurar tema
     if (themeService) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 themeService.init();
-                updateThemeIcon();
             });
         } else {
             themeService.init();
-            updateThemeIcon();
         }
-    }
-
-    // Toggle tema
-    window.toggleTheme = function() {
-        const html = document.documentElement;
-        const body = document.body;
-        const isDark = html.classList.contains('dark');
-        
-        if (isDark) {
-            html.classList.remove('dark');
-            body.classList.remove('active');
-            html.setAttribute('data-theme', 'light');
-            localStorage.setItem('darkMode', 'false');
-        } else {
-            html.classList.add('dark');
-            body.classList.add('active');
-            html.setAttribute('data-theme', 'dark');
-            localStorage.setItem('darkMode', 'true');
-        }
-        
-        updateThemeIcon();
-    };
-    
-    window.updateThemeIcon = function() {
-        const themeIcon = document.getElementById('themeIcon');
-        if (!themeIcon) return;
-        
-        const isDark = document.documentElement.classList.contains('dark');
-        if (isDark) {
-            themeIcon.classList.remove('fa-moon');
-            themeIcon.classList.add('fa-sun');
-        } else {
-            themeIcon.classList.remove('fa-sun');
-            themeIcon.classList.add('fa-moon');
-        }
-    };
-
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn && authService) {
-        logoutBtn.addEventListener('click', () => {
-            authService.logout();
-        });
     }
 
     let currentPage = 1;

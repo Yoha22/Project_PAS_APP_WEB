@@ -6,6 +6,7 @@ import { authService } from '/src/services/auth.js';
 import { dispositivosService } from '/src/services/dispositivos.js';
 import { themeService } from '/src/services/theme.js';
 import { showLoading, hideLoading, showTableLoading, handleError, formatDate } from '/src/utils/ui-helpers.js';
+import { initNavigation } from '/src/components/Navigation.js';
 
 // Log inicial
 console.log('=== Script de dispositivos iniciado ===');
@@ -32,52 +33,19 @@ if (!authService || !authService.isAuthenticated()) {
 
 // Función para inicializar la página
 function initializeDispositivos() {
+    // Inicializar navegación
+    initNavigation('dispositivos');
+    
     // Configurar tema
     if (themeService) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 themeService.init();
-                updateThemeIcon();
             });
         } else {
             themeService.init();
-            updateThemeIcon();
         }
     }
-
-    // Toggle tema
-    window.toggleTheme = function() {
-        const html = document.documentElement;
-        const isDark = html.classList.contains('dark');
-        if (isDark) {
-            html.classList.remove('dark');
-            localStorage.setItem('darkMode', 'false');
-        } else {
-            html.classList.add('dark');
-            localStorage.setItem('darkMode', 'true');
-        }
-        updateThemeIcon();
-    };
-
-    window.updateThemeIcon = function() {
-        const themeIcon = document.getElementById('themeIcon');
-        if (!themeIcon) return;
-        
-        const isDark = document.documentElement.classList.contains('dark');
-        if (isDark) {
-            themeIcon.classList.remove('fa-moon');
-            themeIcon.classList.add('fa-sun');
-        } else {
-            themeIcon.classList.remove('fa-sun');
-            themeIcon.classList.add('fa-moon');
-        }
-    };
-
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn && authService) {
-        logoutBtn.addEventListener('click', async () => {
-            await authService.logout();
             window.location.href = '/login.html';
         });
     }

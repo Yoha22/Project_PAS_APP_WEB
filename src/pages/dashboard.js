@@ -5,69 +5,22 @@ import { authService } from '/src/services/auth.js';
 import { accesosService } from '/src/services/accesos.js';
 import { themeService } from '/src/services/theme.js';
 import { handleError, isNetworkError } from '/src/utils/ui-helpers.js';
+import { initNavigation } from '/src/components/Navigation.js';
 
-// Script simple para toggle de tema
-window.toggleTheme = function() {
-    const html = document.documentElement;
-    const body = document.body;
-    const isDark = html.classList.contains('dark');
-    
-    if (isDark) {
-        html.classList.remove('dark');
-        body.classList.remove('active');
-        html.setAttribute('data-theme', 'light');
-        localStorage.setItem('darkMode', 'false');
-    } else {
-        html.classList.add('dark');
-        body.classList.add('active');
-        html.setAttribute('data-theme', 'dark');
-        localStorage.setItem('darkMode', 'true');
-    }
-    
-    updateThemeIcon();
-    console.log('Tema cambiado a:', isDark ? 'claro' : 'oscuro');
-};
-
-window.updateThemeIcon = function() {
-    const themeIcon = document.getElementById('themeIcon');
-    if (!themeIcon) return;
-    
-    const isDark = document.documentElement.classList.contains('dark');
-    if (isDark) {
-        themeIcon.classList.remove('fa-moon');
-        themeIcon.classList.add('fa-sun');
-    } else {
-        themeIcon.classList.remove('fa-sun');
-        themeIcon.classList.add('fa-moon');
-    }
-};
+// Inicializar navegación
+initNavigation('dashboard');
 
 // Configurar cuando el DOM esté listo
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        window.updateThemeIcon();
         themeService.init();
     });
 } else {
-    window.updateThemeIcon();
     themeService.init();
 }
 
 // Función para inicializar el dashboard (solo se ejecuta si está autenticado)
 function initializeDashboard() {
-    // Logout (solo si authService está disponible)
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn && authService) {
-        logoutBtn.addEventListener('click', () => {
-            authService.logout();
-        });
-    } else if (logoutBtn) {
-        // Si no hay authService, al menos redirigir manualmente
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('auth_token');
-            window.location.href = '/login.html';
-        });
-    }
 
     // Función para mostrar loading en elementos del dashboard
     function showDashboardLoading() {
