@@ -126,3 +126,20 @@ export function formatDate(dateString) {
     }
 }
 
+/**
+ * Redirigir a una ruta usando la ruta completa (origin + path)
+ * @param {string} path - Ruta relativa (ej: '/login.html' o 'login.html')
+ * @param {boolean} replace - Si es true, usa replace en lugar de href (no deja historial)
+ */
+export function redirectTo(path, replace = true) {
+    // Asegurar que la ruta comience con /
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    const fullPath = window.location.origin + cleanPath;
+    
+    if (replace) {
+        window.location.replace(fullPath);
+    } else {
+        window.location.href = fullPath;
+    }
+}
+

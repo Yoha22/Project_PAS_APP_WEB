@@ -69,7 +69,8 @@ export const authService = {
       console.error('Error al cerrar sesión:', error);
     } finally {
       localStorage.removeItem('auth_token');
-      window.location.href = '/login.html';
+      // Usar ruta completa para asegurar que funcione en cualquier contexto
+      window.location.replace(window.location.origin + '/login.html');
     }
   },
 
