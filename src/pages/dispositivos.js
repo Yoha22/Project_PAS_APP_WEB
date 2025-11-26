@@ -46,9 +46,6 @@ function initializeDispositivos() {
             themeService.init();
         }
     }
-            window.location.href = '/login.html';
-        });
-    }
 
     // Cargar dispositivos
     async function loadDispositivos() {
