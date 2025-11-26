@@ -367,7 +367,7 @@ async function checkESP32Connection() {
     statusDiv.classList.remove('hidden');
     statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
     statusIcon.className = 'fas fa-spinner fa-spin text-yellow-500 mr-2';
-    statusText.textContent = 'Verificando conexión...';
+    statusText.innerHTML = '<span>Verificando conexión...</span>';
     
     if (checkBtn) {
         checkBtn.disabled = true;
@@ -378,17 +378,35 @@ async function checkESP32Connection() {
     const configIP = '192.168.4.1';
 
     // Detectar contexto de red
-    const networkContext = await detectNetworkContext();
-    debugLog('Contexto de red detectado', networkContext);
+    let networkContext;
+    try {
+        networkContext = await Promise.race([
+            detectNetworkContext(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+        ]);
+        debugLog('Contexto de red detectado', networkContext);
+    } catch (error) {
+        debugLog('Error o timeout detectando contexto de red', { error: error.message });
+        networkContext = null;
+    }
 
     // Si detecta que está en la red del ESP32, forzar uso de Service Worker
-    const isInESP32Network = await isInESP32Network();
-    if (isInESP32Network) {
-        debugLog('Detectado en red del ESP32 - forzando modo directo con Service Worker');
-        currentMode = 'direct';
-        await registerServiceWorker(); // Asegurar que esté registrado
-        useServiceWorker = true;
-        updateModeIndicator('direct', { useServiceWorker: true });
+    try {
+        const inESP32Net = await Promise.race([
+            isInESP32Network(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+        ]);
+        
+        if (inESP32Net) {
+            debugLog('Detectado en red del ESP32 - forzando modo directo con Service Worker');
+            currentMode = 'direct';
+            await registerServiceWorker(); // Asegurar que esté registrado
+            useServiceWorker = true;
+            updateModeIndicator('direct', { useServiceWorker: true });
+        }
+    } catch (error) {
+        debugLog('Error o timeout verificando red ESP32', { error: error.message });
+        // Continuar sin forzar modo directo si falla la detección
     }
 
     // Intentar primero con IP de configuración
@@ -401,21 +419,35 @@ async function checkESP32Connection() {
         
         // SIEMPRE usar Service Worker si está disponible para evitar CORS
         const shouldUseSW = useServiceWorker || serviceWorkerRegistered;
-        const directResult = await getConfigHtmlDirect(configIP, shouldUseSW);
+        
+        // Agregar timeout para evitar que se quede colgado
+        const directResult = await Promise.race([
+            getConfigHtmlDirect(configIP, shouldUseSW),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout: No se recibió respuesta del ESP32')), 10000)
+            )
+        ]);
         
         if (directResult.success) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
             statusIcon.className = 'fas fa-check-circle text-green-500 mr-2';
-            statusText.textContent = `ESP32 accesible en modo configuración (${configIP}) - Modo: ${currentMode || 'Directo'}`;
+            statusText.innerHTML = `<span>ESP32 accesible en modo configuración (${configIP}) - Modo: ${currentMode || 'Directo'}</span>`;
             debugLog('ESP32 encontrado en modo configuración', { ip: configIP });
             if (checkBtn) {
                 checkBtn.disabled = false;
                 checkBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión';
             }
             return;
+        } else {
+            // Si falló, mostrar el error
+            throw new Error(directResult.error || 'No se pudo conectar al ESP32');
         }
     } catch (error) {
-        debugLog('No se pudo conectar en modo configuración', { error: error.message });
+        debugLog('No se pudo conectar en modo configuración', { 
+            error: error.message,
+            isTimeout: error.message.includes('Timeout')
+        });
+        // Continuar para intentar otras opciones o mostrar mensaje final
     }
 
     // Si no está en modo configuración, verificar IP normal
@@ -433,7 +465,7 @@ async function checkESP32Connection() {
                     if (response.data.success) {
                         statusDiv.className = 'mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
                         statusIcon.className = 'fas fa-info-circle text-blue-500 mr-2';
-                        statusText.textContent = `ESP32 accesible en IP normal (${esp32IP}) vía proxy. Usa "Activar Modo Configuración" para configurarlo.`;
+                        statusText.innerHTML = `<span>ESP32 accesible en IP normal (${esp32IP}) vía proxy. Usa "Activar Modo Configuración" para configurarlo.</span>`;
                         debugLog('ESP32 encontrado en IP normal vía proxy', { ip: esp32IP });
                         if (checkBtn) {
                             checkBtn.disabled = false;
@@ -479,11 +511,42 @@ async function checkESP32Connection() {
                 </div>
             `;
             debugLog('No se pudo conectar con ESP32', { error: error.message, ip: esp32IP });
+            if (checkBtn) {
+                checkBtn.disabled = false;
+                checkBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión';
+            }
+            return;
         }
+    }
+    
+    // Si llegamos aquí, no se pudo conectar ni en modo config ni en modo normal
+    // Mostrar mensaje final
+    statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
+    statusIcon.className = 'fas fa-exclamation-triangle text-yellow-500 mr-2';
+    
+    if (!esp32IP || esp32IP === configIP) {
+        statusText.innerHTML = `
+            <div>
+                <p class="mb-2">No se pudo conectar con el ESP32.</p>
+                <p class="text-xs mt-2"><strong>Para configurar el ESP32:</strong></p>
+                <ol class="list-decimal list-inside text-xs ml-2">
+                    <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
+                    <li>Haz clic en "Verificar Conexión" nuevamente</li>
+                </ol>
+            </div>
+        `;
     } else {
-        statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
-        statusIcon.className = 'fas fa-exclamation-triangle text-yellow-500 mr-2';
-        statusText.textContent = 'Configura la IP del ESP32 y verifica la conexión.';
+        statusText.innerHTML = `
+            <div>
+                <p class="mb-2">No se pudo verificar la conexión con el ESP32.</p>
+                <p class="text-xs mt-2"><strong>Opciones:</strong></p>
+                <ul class="list-disc list-inside text-xs ml-2">
+                    <li>Si el ESP32 está en modo configuración, conecta a "SistemaAcceso-XXXX" y verifica nuevamente</li>
+                    <li>Si el ESP32 está conectado a WiFi, verifica que la IP (${esp32IP}) sea correcta</li>
+                    <li>Usa "Activar Modo Configuración" para poner el ESP32 en modo AP</li>
+                </ul>
+            </div>
+        `;
     }
 
     if (checkBtn) {
