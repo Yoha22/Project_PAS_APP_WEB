@@ -7,7 +7,7 @@ import { esp32Config } from '/src/utils/esp32Config.js';
 import { themeService } from '/src/services/theme.js';
 import apiClient from '/src/services/api.js';
 import { initNavigation } from '/src/components/Navigation.js';
-import { getOptimalMode, detectNetworkContext } from '/src/utils/NetworkDetector.js';
+import { getOptimalMode, detectNetworkContext, isInESP32Network } from '/src/utils/NetworkDetector.js';
 import { getConfigHtmlDirect, postConfigDirect, activateConfigModeDirect } from '/src/services/esp32DirectClient.js';
 
 // Log inicial
@@ -53,8 +53,27 @@ async function registerServiceWorker() {
         return false;
     }
 
+    // Verificar si ya hay un Service Worker activo
+    try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        const swRegistration = registrations.find(reg => 
+            reg.active?.scriptURL?.includes('sw-esp32-proxy.js')
+        );
+        
+        if (swRegistration && swRegistration.active) {
+            debugLog('Service Worker ya está registrado y activo', {
+                state: swRegistration.active.state,
+                scriptURL: swRegistration.active.scriptURL
+            });
+            serviceWorkerRegistered = true;
+            return true;
+        }
+    } catch (err) {
+        debugLog('Error verificando Service Worker existente', err);
+    }
+
     if (serviceWorkerRegistered) {
-        debugLog('Service Worker ya registrado');
+        debugLog('Service Worker marcado como registrado');
         return true;
     }
 
@@ -66,24 +85,44 @@ async function registerServiceWorker() {
         debugLog('Service Worker registrado exitosamente', {
             scope: registration.scope,
             active: registration.active?.state,
-            installing: registration.installing?.state
+            installing: registration.installing?.state,
+            waiting: registration.waiting?.state
         });
 
         // Esperar a que el Service Worker esté activo
         if (registration.installing) {
-            await new Promise((resolve) => {
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout esperando Service Worker'));
+                }, 10000);
+                
                 registration.installing.addEventListener('statechange', () => {
                     if (registration.installing.state === 'activated') {
+                        clearTimeout(timeout);
                         resolve();
+                    } else if (registration.installing.state === 'redundant') {
+                        clearTimeout(timeout);
+                        reject(new Error('Service Worker se volvió redundante'));
                     }
                 });
             });
+        } else if (registration.waiting) {
+            // Si está esperando, forzar activación
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // Verificar que realmente esté activo
+        if (registration.active && registration.active.state === 'activated') {
+            serviceWorkerRegistered = true;
+            debugLog('Service Worker confirmado como activo');
+            return true;
         }
 
         serviceWorkerRegistered = true;
         return true;
     } catch (error) {
-        debugLog('Error al registrar Service Worker', { error: error.message });
+        debugLog('Error al registrar Service Worker', { error: error.message, stack: error.stack });
         return false;
     }
 }
@@ -304,10 +343,10 @@ async function initializeConfig() {
         });
     }
 
-    // Verificar conexión al cargar la página
+    // Verificar conexión al cargar la página (primero detectar modo, luego verificar)
     setTimeout(async () => {
-        await checkESP32Connection();
-        await detectAndSetMode();
+        await detectAndSetMode(); // Primero detectar modo para configurar Service Worker
+        await checkESP32Connection(); // Luego verificar conexión
     }, 1000);
 }
 
@@ -342,12 +381,27 @@ async function checkESP32Connection() {
     const networkContext = await detectNetworkContext();
     debugLog('Contexto de red detectado', networkContext);
 
+    // Si detecta que está en la red del ESP32, forzar uso de Service Worker
+    const isInESP32Network = await isInESP32Network();
+    if (isInESP32Network) {
+        debugLog('Detectado en red del ESP32 - forzando modo directo con Service Worker');
+        currentMode = 'direct';
+        await registerServiceWorker(); // Asegurar que esté registrado
+        useServiceWorker = true;
+        updateModeIndicator('direct', { useServiceWorker: true });
+    }
+
     // Intentar primero con IP de configuración
     try {
-        debugLog('Intentando conectar con ESP32 en modo configuración', { ip: configIP });
+        debugLog('Intentando conectar con ESP32 en modo configuración', { 
+            ip: configIP, 
+            useServiceWorker, 
+            currentMode 
+        });
         
-        // Intentar acceso directo primero
-        const directResult = await getConfigHtmlDirect(configIP, useServiceWorker);
+        // SIEMPRE usar Service Worker si está disponible para evitar CORS
+        const shouldUseSW = useServiceWorker || serviceWorkerRegistered;
+        const directResult = await getConfigHtmlDirect(configIP, shouldUseSW);
         
         if (directResult.success) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
@@ -365,40 +419,50 @@ async function checkESP32Connection() {
     }
 
     // Si no está en modo configuración, verificar IP normal
-    if (esp32IP && esp32IP !== configIP) {
+    if (esp32IP && esp32IP !== configIP && currentMode !== 'direct') {
         try {
-            debugLog('Intentando conectar con ESP32 en IP normal', { ip: esp32IP });
+            debugLog('Intentando conectar con ESP32 en IP normal', { ip: esp32IP, mode: currentMode });
             
-            // Intentar vía proxy del backend
-            try {
-                const response = await apiClient.get('/esp32/config-html', {
-                    params: { ip: esp32IP }
-                });
+            // Solo intentar proxy si NO estamos en modo directo
+            if (currentMode !== 'direct') {
+                try {
+                    const response = await apiClient.get('/esp32/config-html', {
+                        params: { ip: esp32IP }
+                    });
 
-                if (response.data.success) {
-                    statusDiv.className = 'mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
-                    statusIcon.className = 'fas fa-info-circle text-blue-500 mr-2';
-                    statusText.textContent = `ESP32 accesible en IP normal (${esp32IP}) vía proxy. Usa "Activar Modo Configuración" para configurarlo.`;
-                    debugLog('ESP32 encontrado en IP normal vía proxy', { ip: esp32IP });
-                } else {
-                    throw new Error(response.data.error);
+                    if (response.data.success) {
+                        statusDiv.className = 'mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
+                        statusIcon.className = 'fas fa-info-circle text-blue-500 mr-2';
+                        statusText.textContent = `ESP32 accesible en IP normal (${esp32IP}) vía proxy. Usa "Activar Modo Configuración" para configurarlo.`;
+                        debugLog('ESP32 encontrado en IP normal vía proxy', { ip: esp32IP });
+                        if (checkBtn) {
+                            checkBtn.disabled = false;
+                            checkBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión';
+                        }
+                        return;
+                    } else {
+                        throw new Error(response.data.error);
+                    }
+                } catch (proxyError) {
+                    // Si el proxy falla, puede ser que no haya internet
+                    debugLog('Proxy no disponible', { error: proxyError.message });
+                    // Continuar para mostrar mensaje
                 }
-            } catch (proxyError) {
-                // Si el proxy falla, puede ser que no haya internet
-                statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
-                statusIcon.className = 'fas fa-exclamation-triangle text-yellow-500 mr-2';
-                statusText.innerHTML = `
-                    <div>
-                        <p class="mb-2">No se pudo verificar vía proxy. Puede que no haya internet.</p>
-                        <p class="text-xs mt-2"><strong>Para configurar el ESP32:</strong></p>
-                        <ol class="list-decimal list-inside text-xs ml-2">
-                            <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
-                            <li>Vuelve a esta página y haz clic en "Verificar Conexión"</li>
-                        </ol>
-                    </div>
-                `;
-                debugLog('Proxy no disponible', { error: proxyError.message });
             }
+            
+            // Si llegamos aquí, el proxy falló o estamos en modo directo
+            statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
+            statusIcon.className = 'fas fa-exclamation-triangle text-yellow-500 mr-2';
+            statusText.innerHTML = `
+                <div>
+                    <p class="mb-2">No se pudo verificar vía proxy. Puede que no haya internet.</p>
+                    <p class="text-xs mt-2"><strong>Para configurar el ESP32:</strong></p>
+                    <ol class="list-decimal list-inside text-xs ml-2">
+                        <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
+                        <li>Vuelve a esta página y haz clic en "Verificar Conexión"</li>
+                    </ol>
+                </div>
+            `;
         } catch (error) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
             statusIcon.className = 'fas fa-times-circle text-red-500 mr-2';
@@ -574,7 +638,20 @@ async function loadESP32ConfigHtml() {
         if (currentMode === 'direct' || currentMode === 'hybrid') {
             debugLog('Usando modo directo para cargar HTML (SIN backend)');
             
+            // Si detecta que está en la red del ESP32, SIEMPRE usar Service Worker
+            const inESP32Net = await isInESP32Network();
+            if (inESP32Net) {
+                debugLog('Detectado en red ESP32 - forzando Service Worker');
+                currentMode = 'direct';
+                await registerServiceWorker();
+                useServiceWorker = true;
+            }
+            
             // Asegurar que Service Worker esté registrado si es necesario
+            if (!useServiceWorker && serviceWorkerRegistered) {
+                useServiceWorker = true;
+            }
+            
             if (!useServiceWorker) {
                 debugLog('Intentando registrar Service Worker antes de cargar HTML');
                 const swRegistered = await registerServiceWorker();
@@ -584,7 +661,9 @@ async function loadESP32ConfigHtml() {
                 }
             }
             
-            result = await getConfigHtmlDirect(configIP, useServiceWorker);
+            // FORZAR uso de Service Worker para evitar CORS en modo directo
+            const shouldUseSW = useServiceWorker || serviceWorkerRegistered;
+            result = await getConfigHtmlDirect(configIP, shouldUseSW);
             
             // Si falla por CORS y no estamos usando Service Worker, intentar registrarlo
             if (!result.success && result.corsBlocked && !useServiceWorker) {

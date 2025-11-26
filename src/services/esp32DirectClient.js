@@ -25,22 +25,36 @@ export async function getConfigHtmlDirect(ip = '192.168.4.1', useServiceWorker =
     try {
         if (useServiceWorker) {
             // Usar Service Worker como proxy
-            debugLog('Usando Service Worker para bypass CORS');
-            const response = await fetch(`/esp32-direct/get?url=${encodeURIComponent(url)}`, {
+            debugLog('Usando Service Worker para bypass CORS', { url, swPath: `/esp32-direct/get?url=${encodeURIComponent(url)}` });
+            
+            const swUrl = `/esp32-direct/get?url=${encodeURIComponent(url)}&ip=${ip}`;
+            debugLog('Haciendo petición a Service Worker', { swUrl });
+            
+            const response = await fetch(swUrl, {
                 method: 'GET',
                 headers: {
                     'X-ESP32-IP': ip
                 }
             });
 
+            debugLog('Respuesta del Service Worker', { 
+                ok: response.ok, 
+                status: response.status, 
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+
             if (response.ok) {
                 const data = await response.json();
+                debugLog('Datos recibidos del Service Worker', { hasHtml: !!data.html, hasBody: !!data.body });
                 return {
                     success: true,
                     html: data.html || data.body
                 };
             } else {
-                throw new Error(`Service Worker error: ${response.status}`);
+                const errorText = await response.text();
+                debugLog('Error en Service Worker', { status: response.status, errorText });
+                throw new Error(`Service Worker error: ${response.status} - ${errorText}`);
             }
         } else {
             // Intentar petición directa
