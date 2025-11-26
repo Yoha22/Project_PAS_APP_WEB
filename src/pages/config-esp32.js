@@ -428,11 +428,15 @@ async function checkESP32Connection() {
             )
         ]);
         
-        if (directResult.success) {
+        if (directResult.success && directResult.html) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
             statusIcon.className = 'fas fa-check-circle text-green-500 mr-2';
             statusText.innerHTML = `<span>ESP32 accesible en modo configuración (${configIP}) - Modo: ${currentMode || 'Directo'}</span>`;
-            debugLog('ESP32 encontrado en modo configuración', { ip: configIP });
+            debugLog('ESP32 encontrado en modo configuración', { 
+                ip: configIP, 
+                htmlLength: directResult.html.length,
+                htmlPreview: directResult.html.substring(0, 200)
+            });
             if (checkBtn) {
                 checkBtn.disabled = false;
                 checkBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión';
@@ -440,7 +444,13 @@ async function checkESP32Connection() {
             return;
         } else {
             // Si falló, mostrar el error
-            throw new Error(directResult.error || 'No se pudo conectar al ESP32');
+            const errorMsg = directResult.error || 'No se pudo conectar al ESP32';
+            debugLog('Fallo al conectar - respuesta recibida', { 
+                success: directResult.success, 
+                hasHtml: !!directResult.html,
+                error: errorMsg 
+            });
+            throw new Error(errorMsg);
         }
     } catch (error) {
         debugLog('No se pudo conectar en modo configuración', { 
@@ -777,13 +787,38 @@ async function loadESP32ConfigHtml() {
 
         debugLog('HTML recibido', { 
             success: result.success,
-            htmlLength: result.html?.length || 0 
+            htmlLength: result.html?.length || 0,
+            hasHtml: !!result.html,
+            error: result.error
         });
 
-        if (result.success && result.html) {
+        if (result.success && result.html && result.html.length > 0) {
+            debugLog('Renderizando HTML del ESP32', { htmlLength: result.html.length });
             renderESP32HTML(result.html);
         } else {
-            throw new Error(result.error || 'No se pudo obtener el HTML');
+            const errorMsg = result.error || 'No se pudo obtener el HTML del ESP32';
+            debugLog('Error: HTML no recibido o vacío', { 
+                success: result.success,
+                htmlLength: result.html?.length || 0,
+                error: errorMsg
+            });
+            
+            // Si estamos en modo directo y falló, ofrecer alternativa con iframe
+            if (currentMode === 'direct' || currentMode === 'hybrid') {
+                const useIframe = confirm(
+                    'No se pudo cargar el formulario vía Service Worker.\n\n' +
+                    '¿Deseas intentar cargarlo directamente en un iframe?\n' +
+                    '(Esto puede funcionar si estás conectado directamente a la red del ESP32)'
+                );
+                
+                if (useIframe) {
+                    debugLog('Usuario eligió usar iframe como alternativa');
+                    renderESP32Iframe(configIP);
+                    return;
+                }
+            }
+            
+            throw new Error(errorMsg);
         }
     } catch (error) {
         debugLog('Error al cargar HTML', { 
@@ -835,10 +870,10 @@ async function loadESP32ConfigHtml() {
 }
 
 /**
- * Renderizar HTML del ESP32 y procesar formulario
+ * Renderizar HTML del ESP32 usando iframe (alternativa)
  */
-function renderESP32HTML(html) {
-    debugLog('Renderizando HTML del ESP32');
+function renderESP32Iframe(ip = '192.168.4.1') {
+    debugLog('Renderizando ESP32 usando iframe', { ip });
     
     const content = document.getElementById('esp32FormContent');
     if (!content) {
@@ -846,20 +881,99 @@ function renderESP32HTML(html) {
         return;
     }
 
-    // Insertar HTML
-    content.innerHTML = html;
+    content.innerHTML = `
+        <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div class="flex items-center mb-2">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    Cargando formulario directamente desde el ESP32 en un iframe. 
+                    Si no se carga, verifica que estés conectado a la red "SistemaAcceso-XXXX".
+                </p>
+            </div>
+        </div>
+        <iframe 
+            id="esp32Iframe"
+            src="http://${ip}/" 
+            class="w-full border border-gray-300 dark:border-gray-600 rounded-lg"
+            style="min-height: 600px; width: 100%;"
+            sandbox="allow-forms allow-scripts allow-same-origin"
+            onload="console.log('Iframe cargado')"
+            onerror="console.error('Error cargando iframe')">
+        </iframe>
+        <div class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                <strong>Nota:</strong> Si el iframe no se carga, asegúrate de estar conectado directamente a la red WiFi del ESP32 (SistemaAcceso-XXXX).
+            </p>
+        </div>
+    `;
+    
+    debugLog('Iframe creado para ESP32');
+}
 
-    // Buscar el formulario dentro del HTML insertado
-    const form = content.querySelector('#configForm');
-    if (!form) {
-        debugLog('WARNING: Formulario no encontrado en el HTML');
+/**
+ * Renderizar HTML del ESP32 y procesar formulario
+ */
+function renderESP32HTML(html) {
+    debugLog('Renderizando HTML del ESP32', { htmlLength: html.length });
+    
+    const content = document.getElementById('esp32FormContent');
+    if (!content) {
+        debugLog('ERROR: Contenedor de contenido no encontrado');
         return;
     }
 
-    // Interceptar el submit del formulario
-    form.addEventListener('submit', handleESP32FormSubmit);
-    
-    debugLog('Formulario ESP32 renderizado y listo');
+    try {
+        // Insertar HTML
+        content.innerHTML = html;
+        debugLog('HTML insertado en el contenedor');
+
+        // Buscar el formulario dentro del HTML insertado
+        const form = content.querySelector('#configForm');
+        if (!form) {
+            debugLog('WARNING: Formulario no encontrado en el HTML. Buscando alternativas...');
+            
+            // Intentar buscar otros formularios
+            const forms = content.querySelectorAll('form');
+            if (forms.length > 0) {
+                debugLog(`Encontrados ${forms.length} formulario(s), usando el primero`);
+                forms[0].addEventListener('submit', handleESP32FormSubmit);
+                debugLog('Formulario alternativo configurado');
+                return;
+            } else {
+                debugLog('ERROR: No se encontró ningún formulario en el HTML');
+                content.innerHTML = `
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+                        <p class="text-yellow-700 dark:text-yellow-300 mb-4">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            El HTML se cargó pero no se encontró el formulario. Esto puede indicar que el ESP32 está respondiendo con contenido diferente.
+                        </p>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">
+                            <p class="mb-2">HTML recibido (preview):</p>
+                            <pre class="bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-auto max-h-40">${html.substring(0, 500)}...</pre>
+                        </div>
+                        <button onclick="location.reload()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                            <i class="fas fa-redo mr-2"></i>Recargar
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+        }
+
+        // Interceptar el submit del formulario
+        form.addEventListener('submit', handleESP32FormSubmit);
+        debugLog('Formulario ESP32 renderizado y listo');
+    } catch (error) {
+        debugLog('Error renderizando HTML', { error: error.message });
+        content.innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+                <p class="text-red-700 dark:text-red-300">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    Error al renderizar el HTML: ${error.message}
+                </p>
+            </div>
+        `;
+    }
 }
 
 /**

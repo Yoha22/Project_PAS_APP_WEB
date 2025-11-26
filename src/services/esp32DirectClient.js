@@ -41,16 +41,70 @@ export async function getConfigHtmlDirect(ip = '192.168.4.1', useServiceWorker =
                 ok: response.ok, 
                 status: response.status, 
                 statusText: response.statusText,
+                contentType: response.headers.get('Content-Type'),
                 headers: Object.fromEntries(response.headers.entries())
             });
 
             if (response.ok) {
-                const data = await response.json();
-                debugLog('Datos recibidos del Service Worker', { hasHtml: !!data.html, hasBody: !!data.body });
-                return {
-                    success: true,
-                    html: data.html || data.body
-                };
+                // Intentar obtener el contenido como texto primero para ver qué recibimos
+                const responseText = await response.text();
+                debugLog('Respuesta del Service Worker (texto)', { 
+                    length: responseText.length, 
+                    preview: responseText.substring(0, 200) 
+                });
+
+                try {
+                    // Intentar parsear como JSON
+                    const data = JSON.parse(responseText);
+                    debugLog('Datos parseados del Service Worker', { 
+                        hasHtml: !!data.html, 
+                        hasBody: !!data.body,
+                        success: data.success,
+                        keys: Object.keys(data)
+                    });
+                    
+                    // Si tiene HTML, devolverlo
+                    if (data.html) {
+                        return {
+                            success: true,
+                            html: data.html
+                        };
+                    }
+                    
+                    // Si tiene body, puede ser que el SW devolvió el HTML directamente
+                    if (data.body) {
+                        return {
+                            success: true,
+                            html: data.body
+                        };
+                    }
+                    
+                    // Si la respuesta es HTML directamente (no JSON), devolverla
+                    if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+                        return {
+                            success: true,
+                            html: responseText
+                        };
+                    }
+                    
+                    // Si no, lanzar error
+                    throw new Error('Formato de respuesta no reconocido');
+                } catch (parseError) {
+                    debugLog('Error parseando respuesta del Service Worker', { 
+                        error: parseError.message,
+                        responsePreview: responseText.substring(0, 500)
+                    });
+                    
+                    // Si parece ser HTML directamente, devolverlo
+                    if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+                        return {
+                            success: true,
+                            html: responseText
+                        };
+                    }
+                    
+                    throw new Error(`Error parseando respuesta: ${parseError.message}`);
+                }
             } else {
                 const errorText = await response.text();
                 debugLog('Error en Service Worker', { status: response.status, errorText });
