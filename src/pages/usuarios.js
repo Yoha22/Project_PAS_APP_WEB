@@ -208,19 +208,62 @@ function initializeUsuarios() {
             const status = document.getElementById('huellaStatus');
             const huellaInput = document.getElementById('huella_digital');
             
+            // Verificar que la IP esté configurada
+            const esp32IP = esp32Config.getIP();
+            if (!esp32IP || esp32IP === esp32Config.defaultIP) {
+                const result = await Swal.fire({
+                    icon: 'info',
+                    title: 'IP del ESP32 no configurada',
+                    text: '¿Deseas configurar la IP del dispositivo ESP32 ahora?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, configurar',
+                    cancelButtonText: 'Cancelar'
+                });
+                
+                if (result.isConfirmed) {
+                    window.location.href = '/config-esp32.html';
+                }
+                return;
+            }
+            
             showLoading(btn, 'Capturando...');
-            status.textContent = 'Esperando huella...';
+            status.textContent = 'Conectando con dispositivo...';
             status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
             
             const ESP32_URL = esp32Config.getRegisterUrl();
+            console.log('🔗 Intentando conectar con ESP32 en:', ESP32_URL);
             
             try {
+                // Intentar verificar conectividad primero con un timeout corto
+                const connectivityController = new AbortController();
+                const connectivityTimeout = setTimeout(() => connectivityController.abort(), 3000);
+                
+                try {
+                    // Intentar hacer una petición HEAD o GET simple para verificar conectividad
+                    await fetch(ESP32_URL, {
+                        method: 'HEAD',
+                        signal: connectivityController.signal,
+                        mode: 'no-cors' // Permitir verificar conectividad sin CORS
+                    });
+                    clearTimeout(connectivityTimeout);
+                } catch (connectivityError) {
+                    clearTimeout(connectivityTimeout);
+                    // Continuar de todas formas, puede ser un problema de CORS
+                    console.log('⚠️ Verificación de conectividad falló, pero continuando...');
+                }
+                
+                status.textContent = 'Esperando huella en el dispositivo...';
+                
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos para capturar huella
                 
                 const response = await fetch(ESP32_URL, {
                     method: 'GET',
-                    signal: controller.signal
+                    signal: controller.signal,
+                    mode: 'cors', // Intentar con CORS
+                    headers: {
+                        'Accept': 'text/plain, application/json, */*'
+                    }
                 });
                 
                 clearTimeout(timeoutId);
@@ -239,6 +282,14 @@ function initializeUsuarios() {
                                 huellaInput.value = idHuella;
                                 status.textContent = '✓ Huella capturada y registrada';
                                 status.className = 'text-xs text-green-600 dark:text-green-400';
+                                
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Huella capturada',
+                                    text: `ID de huella: ${idHuella}`,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
                             } else {
                                 huellaInput.value = idHuella;
                                 status.textContent = '✓ Huella capturada (no registrada en API)';
@@ -255,19 +306,37 @@ function initializeUsuarios() {
                         status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
                     }
                 } else {
-                    throw new Error('Error en la respuesta del servidor');
+                    throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
                 }
             } catch (error) {
-                console.error('No se pudo conectar con el ESP32:', error);
+                console.error('❌ Error al conectar con el ESP32:', error);
                 status.textContent = '✗ Error al capturar';
                 status.className = 'text-xs text-red-600 dark:text-red-400';
-                Swal.fire({
+                
+                let errorMessage = 'No se pudo conectar con el dispositivo de huellas.';
+                let errorDetails = '';
+                
+                if (error.name === 'AbortError') {
+                    errorDetails = 'El dispositivo no respondió a tiempo. Verifica que:\n- El ESP32 esté encendido\n- Esté en la misma red WiFi\n- La IP configurada sea correcta';
+                } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorDetails = 'No se pudo alcanzar el dispositivo. Verifica que:\n- El ESP32 esté encendido y conectado a la red\n- La IP configurada sea correcta (' + esp32IP + ')\n- No haya problemas de firewall';
+                } else {
+                    errorDetails = error.message || 'Error desconocido';
+                }
+                
+                const result = await Swal.fire({
                     icon: 'warning',
                     title: 'Advertencia',
-                    text: 'No se pudo conectar con el dispositivo de huellas. Puedes agregar el usuario sin huella o ingresar el ID manualmente.',
-                    timer: 4000,
-                    showConfirmButton: false
+                    html: `<p>${errorMessage}</p><p style="font-size: 0.9em; margin-top: 10px;">${errorDetails}</p>`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Configurar IP',
+                    cancelButtonText: 'Continuar sin huella',
+                    footer: '<small>Puedes agregar el usuario sin huella o ingresar el ID manualmente</small>'
                 });
+                
+                if (result.isConfirmed) {
+                    window.location.href = '/config-esp32.html';
+                }
             } finally {
                 hideLoading(btn);
             }
