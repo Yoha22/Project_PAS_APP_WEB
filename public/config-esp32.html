@@ -33,35 +33,7 @@
         </form>
     </div>
 
-    <script type="module">
-        import { esp32Config } from '/src/utils/esp32Config.js';
-
-        // Cargar IP actual
-        document.getElementById('esp32IP').value = esp32Config.getIP();
-
-        document.getElementById('configForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const ip = document.getElementById('esp32IP').value.trim();
-            
-            if (esp32Config.isValidIP(ip)) {
-                esp32Config.setIP(ip);
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Configuración guardada',
-                    text: `IP del ESP32 configurada: ${ip}`,
-                    timer: 2000
-                }).then(() => {
-                    window.location.href = '/usuarios.html';
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'IP inválida',
-                    text: 'Por favor ingresa una dirección IP válida (ej: 192.168.1.100)'
-                });
-            }
-        });
-    </script>
+    <script type="module" src="/src/pages/config-esp32.js"></script>
 </body>
 </html>
 
