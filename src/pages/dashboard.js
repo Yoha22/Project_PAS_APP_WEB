@@ -52,6 +52,80 @@ if (document.readyState === 'loading') {
     themeService.init();
 }
 
+// Función para inicializar el dashboard (solo se ejecuta si está autenticado)
+function initializeDashboard() {
+    // Logout (solo si authService está disponible)
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn && authService) {
+        logoutBtn.addEventListener('click', () => {
+            authService.logout();
+        });
+    } else if (logoutBtn) {
+        // Si no hay authService, al menos redirigir manualmente
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/login.html';
+        });
+    }
+
+    // Cargar estadísticas
+    async function loadStats() {
+        try {
+            const stats = await accesosService.getStats();
+            
+            if (stats.success) {
+                const data = stats.data;
+                
+                // Actualizar información
+                document.getElementById('personaMasIngresos').textContent = 
+                    data.persona_mas_ingresos?.nombre || 'N/A';
+                document.getElementById('fechaMasIngresos').textContent = 
+                    data.fecha_mas_ingresos || 'N/A';
+
+                // Gráfico de barras
+                const barCtx = document.getElementById('barChart').getContext('2d');
+                new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.aperturas_por_dia.map(item => item.fecha),
+                        datasets: [{
+                            label: 'Aperturas por Día',
+                            data: data.aperturas_por_dia.map(item => item.cantidad),
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+
+                // Gráfico circular
+                const pieCtx = document.getElementById('pieChart').getContext('2d');
+                new Chart(pieCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Aperturas en el Mes'],
+                        datasets: [{
+                            data: [data.total_aperturas_mes],
+                            backgroundColor: ['rgba(255, 99, 132, 0.2)'],
+                            borderColor: ['rgba(255, 99, 132, 1)'],
+                            borderWidth: 1
+                        }]
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    }
+
+    loadStats();
+}
+
 // Verificar autenticación (solo si authService está disponible)
 if (!authService) {
     console.error('❌ authService no está disponible - redirigiendo a login');
@@ -65,81 +139,10 @@ if (!authService) {
     if (!authService.isAuthenticated()) {
         console.warn('⚠️ Usuario no autenticado, redirigiendo a login...');
         window.location.href = '/login.html';
-        // NO usar throw - solo redirigir
-        return; // Salir temprano para evitar errores
-    }
-
-    console.log('✅ Usuario autenticado, cargando dashboard...');
-}
-
-// Logout (solo si authService está disponible)
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn && authService) {
-    logoutBtn.addEventListener('click', () => {
-        authService.logout();
-    });
-} else if (logoutBtn) {
-    // Si no hay authService, al menos redirigir manualmente
-    logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('auth_token');
-        window.location.href = '/login.html';
-    });
-}
-
-// Cargar estadísticas
-async function loadStats() {
-    try {
-        const stats = await accesosService.getStats();
-        
-        if (stats.success) {
-            const data = stats.data;
-            
-            // Actualizar información
-            document.getElementById('personaMasIngresos').textContent = 
-                data.persona_mas_ingresos?.nombre || 'N/A';
-            document.getElementById('fechaMasIngresos').textContent = 
-                data.fecha_mas_ingresos || 'N/A';
-
-            // Gráfico de barras
-            const barCtx = document.getElementById('barChart').getContext('2d');
-            new Chart(barCtx, {
-                type: 'bar',
-                data: {
-                    labels: data.aperturas_por_dia.map(item => item.fecha),
-                    datasets: [{
-                        label: 'Aperturas por Día',
-                        data: data.aperturas_por_dia.map(item => item.cantidad),
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: { beginAtZero: true }
-                    }
-                }
-            });
-
-            // Gráfico circular
-            const pieCtx = document.getElementById('pieChart').getContext('2d');
-            new Chart(pieCtx, {
-                type: 'pie',
-                data: {
-                    labels: ['Aperturas en el Mes'],
-                    datasets: [{
-                        data: [data.total_aperturas_mes],
-                        backgroundColor: ['rgba(255, 99, 132, 0.2)'],
-                        borderColor: ['rgba(255, 99, 132, 1)'],
-                        borderWidth: 1
-                    }]
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Error cargando estadísticas:', error);
+    } else {
+        console.log('✅ Usuario autenticado, cargando dashboard...');
+        // Continuar con el resto del código solo si está autenticado
+        initializeDashboard();
     }
 }
-
-loadStats();
 
