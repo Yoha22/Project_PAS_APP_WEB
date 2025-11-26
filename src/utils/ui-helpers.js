@@ -47,6 +47,11 @@ export function showTableLoading(tableBody, columns = 4, text = 'Cargando...') {
 export function handleError(error, defaultMessage = 'Ocurrió un error') {
     console.error('Error:', error);
     
+    // Si el error ya tiene un mensaje de usuario, usarlo
+    if (error.userMessage) {
+        return error.userMessage;
+    }
+    
     let message = defaultMessage;
     
     if (error.response?.data?.message) {
@@ -58,6 +63,30 @@ export function handleError(error, defaultMessage = 'Ocurrió un error') {
     }
     
     return message;
+}
+
+/**
+ * Detectar si un error es de red (servidor inalcanzable)
+ */
+export function isNetworkError(error) {
+    return error.code === 'ERR_NETWORK' || 
+           error.message === 'Network Error' || 
+           error.errorType === 'network' ||
+           error.errorType === 'no_response' ||
+           error.errorType === 'timeout';
+}
+
+/**
+ * Detectar si el backend está activo
+ */
+export async function checkBackendHealth(apiClient) {
+    try {
+        const response = await apiClient.get('/health', { timeout: 5000 });
+        return response.data?.status === 'online';
+    } catch (error) {
+        console.warn('⚠️ Backend health check falló:', error);
+        return false;
+    }
 }
 
 /**

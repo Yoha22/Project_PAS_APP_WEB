@@ -26,6 +26,7 @@ window.addEventListener('unhandledrejection', (event) => {
 import { authService } from '/src/services/auth.js';
 import { themeService } from '/src/services/theme.js';
 import apiClient from '/src/services/api.js';
+import { checkBackendHealth, isNetworkError } from '/src/utils/ui-helpers.js';
 
 // Log inicial para verificar que el script se ejecuta
 console.log('=== Script de login iniciado ===');
@@ -124,7 +125,8 @@ async function checkRegisterMode() {
         console.log('API Base URL:', baseURL);
         console.log('Ruta:', '/auth/check-admin');
         
-        const response = await apiClient.get('/auth/check-admin');
+        // Usar timeout corto para no bloquear la página
+        const response = await apiClient.get('/auth/check-admin', { timeout: 5000 });
         console.log('Respuesta recibida:', response);
         
         const data = response.data;
@@ -141,29 +143,14 @@ async function checkRegisterMode() {
             document.getElementById('codigo').required = true;
         }
     } catch (error) {
-        console.warn('Error verificando modo registro (esto es normal si la API está inactiva):', error.message);
-        
-        // Solo mostrar detalles en desarrollo o si es un error crítico
-        if (import.meta.env.DEV) {
-            console.error('Detalles del error:', {
-                message: error.message,
-                response: error.response,
-                request: error.request,
-                config: error.config
-            });
-        }
-        
-        // No mostrar alertas molestas - solo loguear el error
-        // La API de Render puede estar inactiva y tardar unos segundos en responder
-        if (error.response) {
-            console.error('Error del servidor:', error.response.status, error.response.data);
-        } else if (error.request) {
-            console.warn('No se recibió respuesta del servidor. La API puede estar inactiva (normal en Render free tier).');
+        // No mostrar error si es un error de red - es normal si el backend está inactivo
+        if (isNetworkError(error)) {
+            console.warn('⚠️ Backend no disponible para verificar modo registro (esto es normal si está inactivo)');
         } else {
-            console.error('Error configurando la petición:', error.message);
+            console.warn('Error verificando modo registro:', error.message);
         }
         
-        // Por defecto, asumir que no es modo registro si falla la verificación
+        // Continuar en modo login por defecto
         isRegisterMode = false;
     }
 }
@@ -306,27 +293,31 @@ function initializeForm() {
                         } : null
                     });
                     
-                    let errorMessage = 'Ocurrió un error al procesar la solicitud';
+                    // Usar el mensaje de usuario del error si está disponible (viene del interceptor)
+                    let errorMessage = error.userMessage || 'Ocurrió un error al procesar la solicitud';
                     
-                    if (error.response) {
-                        // El servidor respondió con un error
-                        errorMessage = error.response.data?.message 
-                            || error.response.data?.error 
-                            || `Error ${error.response.status}: ${error.response.statusText}`;
-                    } else if (error.request) {
-                        // La petición se hizo pero no hubo respuesta
+                    // Si es un error de red, proporcionar mensaje más específico
+                    if (isNetworkError(error)) {
                         const attemptedURL = error.config?.baseURL 
                             ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
                             : error.config?.url || 'URL desconocida';
                         
-                        console.error('❌ No se recibió respuesta del servidor');
+                        errorMessage = `No se pudo conectar con el servidor en: ${attemptedURL}. `;
+                        errorMessage += 'El backend puede estar inactivo (normal en Render free tier). ';
+                        errorMessage += 'Espera unos segundos y vuelve a intentar.';
+                        
+                        console.error('❌ Error de red detectado');
                         console.error('URL intentada:', attemptedURL);
                         console.error('Base URL configurada:', apiClient.defaults?.baseURL);
                         console.error('VITE_API_URL:', import.meta.env.VITE_API_URL || 'NO DEFINIDA');
-                        
-                        errorMessage = `No se pudo conectar con el servidor en: ${attemptedURL}. Verifica que el backend esté corriendo y que VITE_API_URL esté configurada correctamente.`;
-                    } else {
-                        // Error al configurar la petición
+                    } else if (error.response) {
+                        // El servidor respondió con un error
+                        errorMessage = error.response.data?.message 
+                            || error.response.data?.error 
+                            || errorMessage
+                            || `Error ${error.response.status}: ${error.response.statusText}`;
+                    } else if (!error.userMessage) {
+                        // Error al configurar la petición o error desconocido
                         errorMessage = error.message || errorMessage;
                     }
                     
@@ -373,10 +364,45 @@ function initializeForm() {
     }
 }
 
+// Verificar estado del backend al cargar la página
+async function checkBackendStatus() {
+    if (!apiClient) {
+        console.warn('⚠️ apiClient no disponible para health check');
+        return false;
+    }
+    
+    try {
+        console.log('🏥 Verificando estado del backend...');
+        const isHealthy = await checkBackendHealth(apiClient);
+        if (isHealthy) {
+            console.log('✅ Backend está activo y respondiendo');
+            return true;
+        } else {
+            console.warn('⚠️ Backend no responde correctamente');
+            return false;
+        }
+    } catch (error) {
+        console.warn('⚠️ No se pudo verificar el estado del backend:', error.message);
+        if (isNetworkError(error)) {
+            console.warn('   Esto puede indicar que el backend está inactivo (normal en Render free tier)');
+        }
+        return false;
+    }
+}
+
 // Inicializar después de que el DOM esté listo (solo una vez)
 // Usar try-catch para asegurar que los errores no detengan la carga de la página
 function initializePage() {
     try {
+        // Verificar estado del backend primero (no bloqueante)
+        checkBackendStatus().then(isHealthy => {
+            if (!isHealthy) {
+                console.warn('⚠️ Backend parece estar inactivo. El login puede fallar hasta que el backend se active.');
+            }
+        }).catch(err => {
+            console.warn('⚠️ Error verificando estado del backend:', err);
+        });
+        
         if (document.readyState === 'loading') {
             // DOM aún no está listo, esperar al evento
             document.addEventListener('DOMContentLoaded', () => {

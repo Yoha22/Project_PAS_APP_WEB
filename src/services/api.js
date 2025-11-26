@@ -29,6 +29,7 @@ const apiClient = axios.create({
     'Accept': 'application/json',
   },
   withCredentials: false, // NO usamos cookies, solo Bearer Token
+  timeout: 30000, // 30 segundos de timeout para evitar peticiones colgadas
 });
 
 // Interceptor para asegurar que las rutas siempre usen el baseURL
@@ -83,9 +84,50 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Clasificar el tipo de error
+    let errorType = 'unknown';
+    let errorMessage = error.message || 'Error desconocido';
+    
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      errorType = 'network';
+      errorMessage = 'Error de conexión: No se pudo conectar con el servidor. Verifica que el backend esté activo.';
+    } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      errorType = 'timeout';
+      errorMessage = 'Timeout: El servidor tardó demasiado en responder. Intenta nuevamente.';
+    } else if (error.response) {
+      // El servidor respondió con un error
+      errorType = 'server';
+      const status = error.response.status;
+      if (status === 401) {
+        errorType = 'authentication';
+        errorMessage = 'Error de autenticación: Token inválido o expirado';
+      } else if (status === 403) {
+        errorType = 'authorization';
+        errorMessage = 'Error de autorización: No tienes permisos para esta acción';
+      } else if (status === 404) {
+        errorType = 'not_found';
+        errorMessage = 'Recurso no encontrado';
+      } else if (status >= 500) {
+        errorType = 'server_error';
+        errorMessage = 'Error del servidor: Intenta nuevamente más tarde';
+      } else {
+        errorMessage = error.response.data?.message || error.response.data?.error || `Error ${status}: ${error.response.statusText}`;
+      }
+    } else if (error.request) {
+      // La petición se hizo pero no hubo respuesta
+      errorType = 'no_response';
+      errorMessage = 'No se recibió respuesta del servidor. El backend puede estar inactivo.';
+    }
+    
+    // Agregar información del tipo de error al objeto de error
+    error.errorType = errorType;
+    error.userMessage = errorMessage;
+    
     // Logging detallado de errores
     console.error('❌ Error en interceptor de respuesta:', {
+      type: errorType,
       message: error.message,
+      userMessage: errorMessage,
       code: error.code,
       response: error.response ? {
         status: error.response.status,
@@ -101,7 +143,8 @@ apiClient.interceptors.response.use(
       config: error.config ? {
         method: error.config.method,
         url: error.config.url,
-        baseURL: error.config.baseURL
+        baseURL: error.config.baseURL,
+        timeout: error.config.timeout
       } : null
     });
     
