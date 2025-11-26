@@ -7,7 +7,9 @@ import { esp32Config } from '/src/utils/esp32Config.js';
 import { themeService } from '/src/services/theme.js';
 import apiClient from '/src/services/api.js';
 import { initNavigation } from '/src/components/Navigation.js';
-import Swal from 'sweetalert2';
+
+// Swal está disponible globalmente desde el script tag en el HTML
+const Swal = window.Swal;
 
 // Log inicial
 console.log('[ESP32-CONFIG] Script de config-esp32 iniciado');
