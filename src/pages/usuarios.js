@@ -9,6 +9,7 @@ import { huellasService } from '/src/services/huellas.js';
 import { esp32Config } from '/src/utils/esp32Config.js';
 import { showLoading, hideLoading, showTableLoading, handleError, isValidCedula, isValidPhone } from '/src/utils/ui-helpers.js';
 import { initNavigation } from '/src/components/Navigation.js';
+import apiClient from '/src/services/api.js';
 
 // Log inicial
 console.log('=== Script de usuarios iniciado ===');
@@ -230,83 +231,74 @@ function initializeUsuarios() {
             status.textContent = 'Conectando con dispositivo...';
             status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
             
-            const ESP32_URL = esp32Config.getRegisterUrl();
-            console.log('🔗 Intentando conectar con ESP32 en:', ESP32_URL);
+            status.textContent = 'Esperando huella en el dispositivo...';
+            console.log('🔗 Intentando conectar con ESP32 vía proxy backend (IP: ' + esp32IP + ')');
             
             try {
-                // Intentar verificar conectividad primero con un timeout corto
-                const connectivityController = new AbortController();
-                const connectivityTimeout = setTimeout(() => connectivityController.abort(), 3000);
-                
-                try {
-                    // Intentar hacer una petición HEAD o GET simple para verificar conectividad
-                    await fetch(ESP32_URL, {
-                        method: 'HEAD',
-                        signal: connectivityController.signal,
-                        mode: 'no-cors' // Permitir verificar conectividad sin CORS
-                    });
-                    clearTimeout(connectivityTimeout);
-                } catch (connectivityError) {
-                    clearTimeout(connectivityTimeout);
-                    // Continuar de todas formas, puede ser un problema de CORS
-                    console.log('⚠️ Verificación de conectividad falló, pero continuando...');
-                }
-                
-                status.textContent = 'Esperando huella en el dispositivo...';
-                
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos para capturar huella
-                
-                const response = await fetch(ESP32_URL, {
-                    method: 'GET',
-                    signal: controller.signal,
-                    mode: 'cors', // Intentar con CORS
-                    headers: {
-                        'Accept': 'text/plain, application/json, */*'
-                    }
+                // Usar el backend como proxy para evitar problemas de Mixed Content
+                const response = await apiClient.get('/esp32-proxy/registrar-huella', {
+                    params: { ip: esp32IP }
                 });
                 
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    const data = await response.text();
+                if (response.data.success) {
+                    // El backend devuelve el ID de la huella del ESP32
+                    // Puede venir en diferentes formatos: response.data.idHuella o response.data.data.idHuella
+                    const idHuella = response.data.idHuella || response.data.data?.idHuella || response.data.raw;
                     
-                    if (data && data.trim() !== '') {
-                        const idHuella = data.trim();
+                    if (idHuella && idHuella.toString().trim() !== '' && idHuella !== '0') {
+                        const idHuellaInt = parseInt(idHuella);
+                        
+                        if (isNaN(idHuellaInt) || idHuellaInt <= 0) {
+                            throw new Error('ID de huella inválido recibido del ESP32');
+                        }
                         
                         // Guardar la huella temporalmente en la API
                         try {
-                            const result = await huellasService.register({ idHuella: parseInt(idHuella) });
+                            const result = await huellasService.register({ idHuella: idHuellaInt });
                             
                             if (result.success) {
-                                huellaInput.value = idHuella;
+                                huellaInput.value = idHuellaInt;
                                 status.textContent = '✓ Huella capturada y registrada';
                                 status.className = 'text-xs text-green-600 dark:text-green-400';
                                 
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'Huella capturada',
-                                    text: `ID de huella: ${idHuella}`,
+                                    text: `ID de huella: ${idHuellaInt}`,
                                     timer: 2000,
                                     showConfirmButton: false
                                 });
                             } else {
-                                huellaInput.value = idHuella;
+                                huellaInput.value = idHuellaInt;
                                 status.textContent = '✓ Huella capturada (no registrada en API)';
                                 status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+                                
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Huella capturada',
+                                    text: `ID: ${idHuellaInt} (no se pudo registrar en API)`,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
                             }
                         } catch (apiError) {
-                            huellaInput.value = idHuella;
-                            status.textContent = '✓ Huella capturada (ID: ' + idHuella + ')';
+                            huellaInput.value = idHuellaInt;
+                            status.textContent = '✓ Huella capturada (ID: ' + idHuellaInt + ')';
                             status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
                             console.warn('Error al registrar en API:', apiError);
+                            
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Huella capturada',
+                                text: `ID: ${idHuellaInt} (no se pudo registrar en API, pero puedes guardarla manualmente)`,
+                                timer: 3000
+                            });
                         }
                     } else {
-                        status.textContent = 'Huella capturada (sin ID)';
-                        status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
+                        throw new Error('No se recibió un ID de huella válido del ESP32');
                     }
                 } else {
-                    throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(response.data.error || 'Error desconocido del servidor');
                 }
             } catch (error) {
                 console.error('❌ Error al conectar con el ESP32:', error);
@@ -316,18 +308,25 @@ function initializeUsuarios() {
                 let errorMessage = 'No se pudo conectar con el dispositivo de huellas.';
                 let errorDetails = '';
                 
-                if (error.name === 'AbortError') {
-                    errorDetails = 'El dispositivo no respondió a tiempo. Verifica que:\n- El ESP32 esté encendido\n- Esté en la misma red WiFi\n- La IP configurada sea correcta';
-                } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    errorDetails = 'No se pudo alcanzar el dispositivo. Verifica que:\n- El ESP32 esté encendido y conectado a la red\n- La IP configurada sea correcta (' + esp32IP + ')\n- No haya problemas de firewall';
+                // Manejar diferentes tipos de errores
+                if (error.response?.data?.error) {
+                    // Error del backend proxy
+                    errorDetails = error.response.data.error;
+                    if (error.response.data.details) {
+                        errorDetails += '\n\n' + error.response.data.details;
+                    }
+                } else if (error.response?.data?.message) {
+                    errorDetails = error.response.data.message;
+                } else if (error.message) {
+                    errorDetails = error.message;
                 } else {
-                    errorDetails = error.message || 'Error desconocido';
+                    errorDetails = 'Error desconocido. Verifica que:\n- El ESP32 esté encendido y conectado a la red\n- La IP configurada sea correcta (' + esp32IP + ')\n- El backend pueda acceder al ESP32';
                 }
                 
                 const result = await Swal.fire({
                     icon: 'warning',
                     title: 'Advertencia',
-                    html: `<p>${errorMessage}</p><p style="font-size: 0.9em; margin-top: 10px;">${errorDetails}</p>`,
+                    html: `<p><strong>${errorMessage}</strong></p><p style="font-size: 0.9em; margin-top: 10px; white-space: pre-line;">${errorDetails}</p>`,
                     showCancelButton: true,
                     confirmButtonText: 'Configurar IP',
                     cancelButtonText: 'Continuar sin huella',
