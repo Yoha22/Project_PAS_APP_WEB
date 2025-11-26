@@ -7,9 +7,16 @@ import { esp32Config } from '/src/utils/esp32Config.js';
 import { themeService } from '/src/services/theme.js';
 import apiClient from '/src/services/api.js';
 import { initNavigation } from '/src/components/Navigation.js';
+import { getOptimalMode, detectNetworkContext } from '/src/utils/NetworkDetector.js';
+import { getConfigHtmlDirect, postConfigDirect, activateConfigModeDirect } from '/src/services/esp32DirectClient.js';
 
 // Log inicial
 console.log('[ESP32-CONFIG] Script de config-esp32 iniciado');
+
+// Estado global del modo de comunicación
+let currentMode = null;
+let useServiceWorker = false;
+let serviceWorkerRegistered = false;
 
 // Manejo global de errores
 window.addEventListener('error', (event) => {
@@ -37,8 +44,124 @@ function debugLog(message, data = null) {
     console.log(`[ESP32-CONFIG] [${timestamp}] ${message}`, data || '');
 }
 
+/**
+ * Registrar Service Worker para bypass de CORS
+ */
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        debugLog('Service Worker no soportado en este navegador');
+        return false;
+    }
+
+    if (serviceWorkerRegistered) {
+        debugLog('Service Worker ya registrado');
+        return true;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.register('/sw-esp32-proxy.js', {
+            scope: '/'
+        });
+
+        debugLog('Service Worker registrado exitosamente', {
+            scope: registration.scope,
+            active: registration.active?.state,
+            installing: registration.installing?.state
+        });
+
+        // Esperar a que el Service Worker esté activo
+        if (registration.installing) {
+            await new Promise((resolve) => {
+                registration.installing.addEventListener('statechange', () => {
+                    if (registration.installing.state === 'activated') {
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        serviceWorkerRegistered = true;
+        return true;
+    } catch (error) {
+        debugLog('Error al registrar Service Worker', { error: error.message });
+        return false;
+    }
+}
+
+/**
+ * Detectar y configurar modo óptimo de comunicación
+ */
+async function detectAndSetMode() {
+    debugLog('Detectando modo óptimo de comunicación...');
+    
+    const configIP = document.getElementById('esp32ConfigIP')?.value || '192.168.4.1';
+    const optimalMode = await getOptimalMode(configIP);
+    
+    currentMode = optimalMode.mode;
+    useServiceWorker = optimalMode.details.useServiceWorker || false;
+
+    debugLog('Modo óptimo determinado', {
+        mode: currentMode,
+        useServiceWorker,
+        details: optimalMode.details
+    });
+
+    // Si necesita Service Worker, registrarlo
+    if (useServiceWorker) {
+        const swRegistered = await registerServiceWorker();
+        if (!swRegistered) {
+            debugLog('WARNING: No se pudo registrar Service Worker, puede haber problemas de CORS');
+        }
+    }
+
+    // Actualizar indicador visual
+    updateModeIndicator(currentMode, optimalMode.details);
+
+    return optimalMode;
+}
+
+/**
+ * Actualizar indicador visual del modo activo
+ */
+function updateModeIndicator(mode, details) {
+    const indicator = document.getElementById('modeIndicator');
+    if (!indicator) return;
+
+    const modeText = {
+        'direct': 'Modo Directo',
+        'proxy': 'Modo Proxy',
+        'hybrid': 'Modo Híbrido',
+        'unavailable': 'Sin Conexión'
+    };
+
+    const modeColors = {
+        'direct': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-300 dark:border-green-700',
+        'proxy': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700',
+        'hybrid': 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+        'unavailable': 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700'
+    };
+
+    const modeIcons = {
+        'direct': 'fa-wifi',
+        'proxy': 'fa-cloud',
+        'hybrid': 'fa-network-wired',
+        'unavailable': 'fa-exclamation-triangle'
+    };
+
+    indicator.className = `inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${modeColors[mode] || modeColors.unavailable}`;
+    indicator.innerHTML = `
+        <i class="fas ${modeIcons[mode] || modeIcons.unavailable} mr-2"></i>
+        ${modeText[mode] || 'Desconocido'}
+    `;
+
+    // Agregar tooltip con detalles
+    if (details && details.reason) {
+        indicator.title = details.reason;
+    }
+}
+
 // Función para inicializar la página
-function initializeConfig() {
+async function initializeConfig() {
     // Inicializar navegación
     initNavigation('config');
     
@@ -64,6 +187,16 @@ function initializeConfig() {
         esp32ConfigIPInput.value = '192.168.4.1'; // IP fija en modo configuración
     }
 
+    // Intentar registrar Service Worker temprano (por si acaso se necesita)
+    if ('serviceWorker' in navigator) {
+        registerServiceWorker().catch(err => {
+            debugLog('Service Worker no pudo registrarse inicialmente', err);
+        });
+    }
+
+    // Detectar modo óptimo al inicializar
+    await detectAndSetMode();
+
     // Botón para guardar IP
     const saveIPBtn = document.getElementById('saveIPBtn');
     if (saveIPBtn) {
@@ -79,6 +212,8 @@ function initializeConfig() {
                     showConfirmButton: false
                 });
                 debugLog('IP guardada', { ip });
+                // Redetectar modo después de cambiar IP
+                detectAndSetMode();
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -92,8 +227,9 @@ function initializeConfig() {
     // Botón para verificar conexión
     const checkConnectionBtn = document.getElementById('checkConnectionBtn');
     if (checkConnectionBtn) {
-        checkConnectionBtn.addEventListener('click', () => {
-            checkESP32Connection();
+        checkConnectionBtn.addEventListener('click', async () => {
+            await checkESP32Connection();
+            await detectAndSetMode(); // Redetectar después de verificar
         });
     }
 
@@ -125,8 +261,9 @@ function initializeConfig() {
     }
 
     // Verificar conexión al cargar la página
-    setTimeout(() => {
-        checkESP32Connection();
+    setTimeout(async () => {
+        await checkESP32Connection();
+        await detectAndSetMode();
     }, 1000);
 }
 
@@ -157,20 +294,21 @@ async function checkESP32Connection() {
     const esp32IP = document.getElementById('esp32IP')?.value || esp32Config.getIP();
     const configIP = '192.168.4.1';
 
-    try {
-        // Intentar primero con IP de configuración
-        debugLog('Intentando conectar con ESP32 en modo configuración', { ip: configIP });
-        const configResponse = await fetch(`/api/esp32/config-html?ip=${configIP}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${authService.getToken()}`,
-            },
-        });
+    // Detectar contexto de red
+    const networkContext = await detectNetworkContext();
+    debugLog('Contexto de red detectado', networkContext);
 
-        if (configResponse.ok) {
+    // Intentar primero con IP de configuración
+    try {
+        debugLog('Intentando conectar con ESP32 en modo configuración', { ip: configIP });
+        
+        // Intentar acceso directo primero
+        const directResult = await getConfigHtmlDirect(configIP, useServiceWorker);
+        
+        if (directResult.success) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800';
             statusIcon.className = 'fas fa-check-circle text-green-500 mr-2';
-            statusText.textContent = `ESP32 accesible en modo configuración (${configIP})`;
+            statusText.textContent = `ESP32 accesible en modo configuración (${configIP}) - Modo: ${currentMode || 'Directo'}`;
             debugLog('ESP32 encontrado en modo configuración', { ip: configIP });
             if (checkBtn) {
                 checkBtn.disabled = false;
@@ -186,16 +324,28 @@ async function checkESP32Connection() {
     if (esp32IP && esp32IP !== configIP) {
         try {
             debugLog('Intentando conectar con ESP32 en IP normal', { ip: esp32IP });
-            // Intentar una petición simple al ESP32 (por ejemplo, /config)
-            const response = await fetch(`http://${esp32IP}/config`, {
-                method: 'GET',
-                mode: 'no-cors', // Solo para verificar conectividad
-            });
+            
+            // Intentar vía proxy del backend
+            try {
+                const response = await apiClient.get('/esp32/config-html', {
+                    params: { ip: esp32IP }
+                });
 
-            statusDiv.className = 'mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
-            statusIcon.className = 'fas fa-info-circle text-blue-500 mr-2';
-            statusText.textContent = `ESP32 accesible en IP normal (${esp32IP}). Usa "Activar Modo Configuración" para configurarlo.`;
-            debugLog('ESP32 encontrado en IP normal', { ip: esp32IP });
+                if (response.data.success) {
+                    statusDiv.className = 'mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800';
+                    statusIcon.className = 'fas fa-info-circle text-blue-500 mr-2';
+                    statusText.textContent = `ESP32 accesible en IP normal (${esp32IP}) vía proxy. Usa "Activar Modo Configuración" para configurarlo.`;
+                    debugLog('ESP32 encontrado en IP normal vía proxy', { ip: esp32IP });
+                } else {
+                    throw new Error(response.data.error);
+                }
+            } catch (proxyError) {
+                // Si el proxy falla, puede ser que no haya internet
+                statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
+                statusIcon.className = 'fas fa-exclamation-triangle text-yellow-500 mr-2';
+                statusText.textContent = `No se pudo verificar vía proxy. Puede que no haya internet. Intenta conectarte a la red del ESP32.`;
+                debugLog('Proxy no disponible', { error: proxyError.message });
+            }
         } catch (error) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
             statusIcon.className = 'fas fa-times-circle text-red-500 mr-2';
@@ -255,11 +405,28 @@ async function activateConfigMode() {
             }
         });
 
-        debugLog('Enviando petición para activar modo configuración', { ip: esp32IP });
+        debugLog('Enviando petición para activar modo configuración', { ip: esp32IP, mode: currentMode });
         
-        const response = await apiClient.post('/esp32/activate-config-mode', {
-            ip: esp32IP
-        });
+        let response;
+        
+        // Usar modo directo si está disponible, sino usar proxy
+        if (currentMode === 'direct' || currentMode === 'hybrid') {
+            const directResult = await activateConfigModeDirect(esp32IP, useServiceWorker);
+            if (directResult.success) {
+                response = { data: directResult };
+            } else {
+                // Fallback a proxy si directo falla
+                debugLog('Modo directo falló, usando proxy', directResult);
+                response = await apiClient.post('/esp32/activate-config-mode', {
+                    ip: esp32IP
+                });
+            }
+        } else {
+            // Usar proxy del backend
+            response = await apiClient.post('/esp32/activate-config-mode', {
+                ip: esp32IP
+            });
+        }
 
         debugLog('Respuesta de activación recibida', response.data);
 
@@ -270,6 +437,11 @@ async function activateConfigMode() {
                 text: 'El ESP32 se reiniciará. Conéctate al WiFi "SistemaAcceso-XXXX" y espera unos segundos antes de cargar el formulario.',
                 timer: 5000
             });
+            
+            // Redetectar modo después de activar
+            setTimeout(() => {
+                detectAndSetMode();
+            }, 3000);
         } else {
             throw new Error(response.data.error || 'Error desconocido');
         }
@@ -302,7 +474,7 @@ async function activateConfigMode() {
  * Cargar HTML del portal de configuración del ESP32
  */
 async function loadESP32ConfigHtml() {
-    debugLog('Cargando HTML del ESP32...');
+    debugLog('Cargando HTML del ESP32...', { mode: currentMode, useServiceWorker });
     
     const container = document.getElementById('esp32ConfigContainer');
     const content = document.getElementById('esp32FormContent');
@@ -312,6 +484,9 @@ async function loadESP32ConfigHtml() {
         debugLog('ERROR: Contenedores no encontrados');
         return;
     }
+
+    // Redetectar modo antes de cargar
+    await detectAndSetMode();
 
     // Mostrar contenedor
     container.classList.remove('hidden');
@@ -327,21 +502,62 @@ async function loadESP32ConfigHtml() {
     const configIP = document.getElementById('esp32ConfigIP')?.value || '192.168.4.1';
 
     try {
-        debugLog('Solicitando HTML del ESP32', { ip: configIP });
+        debugLog('Solicitando HTML del ESP32', { ip: configIP, mode: currentMode, useServiceWorker });
         
-        const response = await apiClient.get('/esp32/config-html', {
-            params: { ip: configIP }
-        });
+        let result;
+        
+        // Usar modo directo si está disponible
+        if (currentMode === 'direct' || currentMode === 'hybrid') {
+            debugLog('Usando modo directo para cargar HTML');
+            result = await getConfigHtmlDirect(configIP, useServiceWorker);
+            
+            if (!result.success && result.corsBlocked && !useServiceWorker) {
+                // Intentar registrar Service Worker y reintentar
+                debugLog('CORS bloqueado, intentando registrar Service Worker');
+                const swRegistered = await registerServiceWorker();
+                if (swRegistered) {
+                    useServiceWorker = true;
+                    result = await getConfigHtmlDirect(configIP, true);
+                }
+            }
+            
+            // Si el modo directo falla completamente, intentar proxy como fallback
+            if (!result.success && currentMode === 'hybrid') {
+                debugLog('Modo directo falló, usando proxy como fallback');
+                try {
+                    const response = await apiClient.get('/esp32/config-html', {
+                        params: { ip: configIP }
+                    });
+                    if (response.data.success) {
+                        result = { success: true, html: response.data.html };
+                    }
+                } catch (proxyError) {
+                    debugLog('Proxy también falló', proxyError);
+                }
+            }
+        } else {
+            // Usar proxy del backend
+            debugLog('Usando proxy del backend para cargar HTML');
+            const response = await apiClient.get('/esp32/config-html', {
+                params: { ip: configIP }
+            });
+
+            if (response.data.success && response.data.html) {
+                result = { success: true, html: response.data.html };
+            } else {
+                throw new Error(response.data.error || 'No se pudo obtener el HTML');
+            }
+        }
 
         debugLog('HTML recibido', { 
-            success: response.data.success,
-            htmlLength: response.data.html?.length || 0 
+            success: result.success,
+            htmlLength: result.html?.length || 0 
         });
 
-        if (response.data.success && response.data.html) {
-            renderESP32HTML(response.data.html);
+        if (result.success && result.html) {
+            renderESP32HTML(result.html);
         } else {
-            throw new Error(response.data.error || 'No se pudo obtener el HTML');
+            throw new Error(result.error || 'No se pudo obtener el HTML');
         }
     } catch (error) {
         debugLog('Error al cargar HTML', { 
@@ -370,6 +586,7 @@ async function loadESP32ConfigHtml() {
                         <li>Conéctate al WiFi "SistemaAcceso-XXXX"</li>
                         <li>Espera unos segundos después de activar el modo configuración</li>
                         <li>Verifica que la IP sea 192.168.4.1</li>
+                        <li>Si estás en la red del ESP32, el sistema debería detectarlo automáticamente</li>
                     </ul>
                 </div>
                 <button onclick="window.loadESP32ConfigHtml()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
@@ -424,7 +641,7 @@ function renderESP32HTML(html) {
  */
 async function handleESP32FormSubmit(e) {
     e.preventDefault();
-    debugLog('Formulario ESP32 enviado');
+    debugLog('Formulario ESP32 enviado', { mode: currentMode, useServiceWorker });
     
     const form = e.target;
     const formData = new FormData(form);
@@ -448,21 +665,61 @@ async function handleESP32FormSubmit(e) {
     try {
         debugLog('Enviando configuración al ESP32', { 
             data: { ...data, password: '***' }, // No loguear password
-            ip: configIP 
+            ip: configIP,
+            mode: currentMode,
+            useServiceWorker
         });
 
-        const response = await apiClient.post('/esp32/config', {
-            ...data,
-            ip: configIP
-        });
+        let result;
+        
+        // Usar modo directo si está disponible
+        if (currentMode === 'direct' || currentMode === 'hybrid') {
+            debugLog('Usando modo directo para enviar configuración');
+            result = await postConfigDirect(configIP, data, useServiceWorker);
+            
+            // Si falla por CORS y no estamos usando Service Worker, intentar registrarlo
+            if (!result.success && result.corsBlocked && !useServiceWorker) {
+                debugLog('CORS bloqueado, intentando registrar Service Worker');
+                const swRegistered = await registerServiceWorker();
+                if (swRegistered) {
+                    useServiceWorker = true;
+                    result = await postConfigDirect(configIP, data, true);
+                }
+            }
+            
+            // Si el modo directo falla completamente, intentar proxy como fallback
+            if (!result.success && currentMode === 'hybrid') {
+                debugLog('Modo directo falló, usando proxy como fallback');
+                try {
+                    const response = await apiClient.post('/esp32/config', {
+                        ...data,
+                        ip: configIP
+                    });
+                    if (response.data.success) {
+                        result = { success: true, data: response.data };
+                    }
+                } catch (proxyError) {
+                    debugLog('Proxy también falló', proxyError);
+                }
+            }
+        } else {
+            // Usar proxy del backend
+            debugLog('Usando proxy del backend para enviar configuración');
+            const response = await apiClient.post('/esp32/config', {
+                ...data,
+                ip: configIP
+            });
+            result = { success: response.data.success, data: response.data };
+        }
 
-        debugLog('Respuesta del ESP32 recibida', response.data);
+        debugLog('Respuesta del ESP32 recibida', result);
 
         if (resultDiv) {
-            if (response.data.success) {
+            if (result.success) {
+                const message = result.data?.message || 'Configuración guardada exitosamente';
                 resultDiv.innerHTML = `
                     <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg">
-                        <i class="fas fa-check-circle mr-2"></i>${response.data.message || 'Configuración guardada exitosamente'}
+                        <i class="fas fa-check-circle mr-2"></i>${message}
                     </div>
                 `;
                 
@@ -483,7 +740,7 @@ async function handleESP32FormSubmit(e) {
                     timer: 5000
                 });
             } else {
-                throw new Error(response.data.error || 'Error desconocido');
+                throw new Error(result.error || 'Error desconocido');
             }
         }
     } catch (error) {
