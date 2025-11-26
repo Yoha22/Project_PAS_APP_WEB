@@ -1,4 +1,6 @@
 // Importar CSS como módulo (Vite lo procesará durante el build)
+import '/src/assets/css/main.css';
+import '/src/assets/css/sty.css';
 import '/src/assets/css/dark-mode.css';
 
 // Manejo global de errores para evitar que la página quede en blanco
@@ -166,135 +168,210 @@ async function checkRegisterMode() {
     }
 }
 
-// Manejar envío del formulario (solo si authService está disponible)
-const authForm = document.getElementById('authForm');
-if (authForm && authService) {
-    authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
+// Manejar envío del formulario - intentar inicializar incluso si hay errores
+function initializeForm() {
+    try {
+        const authForm = document.getElementById('authForm');
+        if (!authForm) {
+            console.warn('⚠️ Formulario de autenticación no encontrado, reintentando...');
+            // Reintentar después de un breve delay
+            setTimeout(initializeForm, 100);
+            return;
+        }
+
         if (!authService) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Los servicios de autenticación no están disponibles. Por favor, recarga la página.'
+            console.error('❌ authService no está disponible');
+            // Mostrar mensaje de error pero permitir que la página se muestre
+            authForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const swalAvailable = typeof Swal !== 'undefined';
+                if (swalAvailable) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Los servicios de autenticación no están disponibles. Por favor, recarga la página.'
+                    });
+                } else {
+                    alert('Error: Los servicios de autenticación no están disponibles. Por favor, recarga la página.');
+                }
             });
             return;
         }
-        
-        const formData = {
-            correo: document.getElementById('correo').value,
-            password: document.getElementById('password').value,
-        };
 
-        if (isRegisterMode) {
-            formData.telefono = document.getElementById('telefono').value;
-            formData.codigo = document.getElementById('codigo').value;
-        }
-
-        const submitBtn = document.getElementById('submitBtn');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
-
-        try {
-            let result;
-            if (isRegisterMode) {
-                result = await authService.register(formData);
-            } else {
-                result = await authService.login(formData);
-            }
-
-        console.log('✅ Resultado del login/registro:', result);
-        console.log('✅ result.success:', result?.success);
-        console.log('✅ Token guardado:', !!localStorage.getItem('auth_token'));
-
-        if (result && result.success) {
-            console.log('✅ Login exitoso, mostrando mensaje y redirigiendo...');
-            
-            // Mostrar mensaje de éxito
+        authForm.addEventListener('submit', async (e) => {
             try {
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Éxito',
-                    text: result.message || 'Operación exitosa',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            } catch (swalError) {
-                console.warn('⚠️ Error con SweetAlert, continuando con redirección:', swalError);
+                e.preventDefault();
+                
+                if (!authService) {
+                    const swalAvailable = typeof Swal !== 'undefined';
+                    if (swalAvailable) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Los servicios de autenticación no están disponibles. Por favor, recarga la página.'
+                        });
+                    } else {
+                        alert('Error: Los servicios de autenticación no están disponibles. Por favor, recarga la página.');
+                    }
+                    return;
+                }
+            
+                const formData = {
+                    correo: document.getElementById('correo').value,
+                    password: document.getElementById('password').value,
+                };
+
+                if (isRegisterMode) {
+                    formData.telefono = document.getElementById('telefono').value;
+                    formData.codigo = document.getElementById('codigo').value;
+                }
+
+                const submitBtn = document.getElementById('submitBtn');
+                const originalText = submitBtn ? submitBtn.innerHTML : '';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
+                }
+
+                try {
+                    let result;
+                    if (isRegisterMode) {
+                        result = await authService.register(formData);
+                    } else {
+                        result = await authService.login(formData);
+                    }
+
+                    console.log('✅ Resultado del login/registro:', result);
+                    console.log('✅ result.success:', result?.success);
+                    console.log('✅ Token guardado:', !!localStorage.getItem('auth_token'));
+
+                    if (result && result.success) {
+                        console.log('✅ Login exitoso, mostrando mensaje y redirigiendo...');
+                        
+                        // Mostrar mensaje de éxito
+                        try {
+                            const swalAvailable = typeof Swal !== 'undefined';
+                            if (swalAvailable) {
+                                await Swal.fire({
+                                    icon: 'success',
+                                    title: 'Éxito',
+                                    text: result.message || 'Operación exitosa',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                });
+                            }
+                        } catch (swalError) {
+                            console.warn('⚠️ Error con SweetAlert, continuando con redirección:', swalError);
+                        }
+                        
+                        // Redirigir al dashboard
+                        console.log('🔄 Redirigiendo a dashboard...');
+                        window.location.href = '/dashboard.html';
+                    } else {
+                        console.error('❌ Login falló - result.success es false o undefined');
+                        console.error('Result completo:', result);
+                        
+                        const swalAvailable = typeof Swal !== 'undefined';
+                        if (swalAvailable) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: result?.message || 'Ocurrió un error al iniciar sesión'
+                            });
+                        } else {
+                            alert(result?.message || 'Ocurrió un error al iniciar sesión');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error completo:', error);
+                    console.error('Detalles del error:', {
+                        message: error.message,
+                        code: error.code,
+                        response: error.response ? {
+                            status: error.response.status,
+                            statusText: error.response.statusText,
+                            data: error.response.data
+                        } : null,
+                        request: error.request ? {
+                            responseURL: error.request.responseURL,
+                            status: error.request.status
+                        } : null,
+                        config: error.config ? {
+                            method: error.config.method,
+                            url: error.config.url,
+                            baseURL: error.config.baseURL,
+                            fullURL: error.config.baseURL 
+                                ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
+                                : error.config.url
+                        } : null
+                    });
+                    
+                    let errorMessage = 'Ocurrió un error al procesar la solicitud';
+                    
+                    if (error.response) {
+                        // El servidor respondió con un error
+                        errorMessage = error.response.data?.message 
+                            || error.response.data?.error 
+                            || `Error ${error.response.status}: ${error.response.statusText}`;
+                    } else if (error.request) {
+                        // La petición se hizo pero no hubo respuesta
+                        const attemptedURL = error.config?.baseURL 
+                            ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
+                            : error.config?.url || 'URL desconocida';
+                        
+                        console.error('❌ No se recibió respuesta del servidor');
+                        console.error('URL intentada:', attemptedURL);
+                        console.error('Base URL configurada:', apiClient.defaults?.baseURL);
+                        console.error('VITE_API_URL:', import.meta.env.VITE_API_URL || 'NO DEFINIDA');
+                        
+                        errorMessage = `No se pudo conectar con el servidor en: ${attemptedURL}. Verifica que el backend esté corriendo y que VITE_API_URL esté configurada correctamente.`;
+                    } else {
+                        // Error al configurar la petición
+                        errorMessage = error.message || errorMessage;
+                    }
+                    
+                    const swalAvailable = typeof Swal !== 'undefined';
+                    if (swalAvailable) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMessage
+                        });
+                    } else {
+                        alert(errorMessage);
+                    }
+                } finally {
+                    const submitBtn = document.getElementById('submitBtn');
+                    if (submitBtn && originalText) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
+                }
+            } catch (formError) {
+                console.error('❌ Error en el manejador del formulario:', formError);
+                const submitBtn = document.getElementById('submitBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    const originalText = submitBtn.getAttribute('data-original-text') || '<i class="fas fa-sign-in-alt mr-2"></i><span id="submitText">Iniciar Sesión</span>';
+                    submitBtn.innerHTML = originalText;
+                }
+                const swalAvailable = typeof Swal !== 'undefined';
+                if (swalAvailable) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Ocurrió un error inesperado. Por favor, intenta nuevamente.'
+                    });
+                } else {
+                    alert('Ocurrió un error inesperado. Por favor, intenta nuevamente.');
+                }
             }
-            
-            // Redirigir al dashboard
-            console.log('🔄 Redirigiendo a dashboard...');
-            window.location.href = '/dashboard.html';
-        } else {
-            console.error('❌ Login falló - result.success es false o undefined');
-            console.error('Result completo:', result);
-            
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: result?.message || 'Ocurrió un error al iniciar sesión'
-            });
-        }
-    } catch (error) {
-        console.error('Error completo:', error);
-        console.error('Detalles del error:', {
-            message: error.message,
-            code: error.code,
-            response: error.response ? {
-                status: error.response.status,
-                statusText: error.response.statusText,
-                data: error.response.data
-            } : null,
-            request: error.request ? {
-                responseURL: error.request.responseURL,
-                status: error.request.status
-            } : null,
-            config: error.config ? {
-                method: error.config.method,
-                url: error.config.url,
-                baseURL: error.config.baseURL,
-                fullURL: error.config.baseURL 
-                    ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
-                    : error.config.url
-            } : null
         });
-        
-        let errorMessage = 'Ocurrió un error al procesar la solicitud';
-        
-        if (error.response) {
-            // El servidor respondió con un error
-            errorMessage = error.response.data?.message 
-                || error.response.data?.error 
-                || `Error ${error.response.status}: ${error.response.statusText}`;
-        } else if (error.request) {
-            // La petición se hizo pero no hubo respuesta
-            const attemptedURL = error.config?.baseURL 
-                ? `${error.config.baseURL}/${error.config.url || ''}`.replace(/\/+/g, '/').replace(':/', '://')
-                : error.config?.url || 'URL desconocida';
-            
-            console.error('❌ No se recibió respuesta del servidor');
-            console.error('URL intentada:', attemptedURL);
-            console.error('Base URL configurada:', apiClient.defaults?.baseURL);
-            console.error('VITE_API_URL:', import.meta.env.VITE_API_URL || 'NO DEFINIDA');
-            
-            errorMessage = `No se pudo conectar con el servidor en: ${attemptedURL}. Verifica que el backend esté corriendo y que VITE_API_URL esté configurada correctamente.`;
-        } else {
-            // Error al configurar la petición
-            errorMessage = error.message || errorMessage;
-        }
-        
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: errorMessage
-        });
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
+    } catch (initError) {
+        console.error('❌ Error inicializando formulario:', initError);
+        // Asegurar que la página se muestre incluso si hay errores
     }
-});
+}
 
 // Inicializar después de que el DOM esté listo (solo una vez)
 // Usar try-catch para asegurar que los errores no detengan la carga de la página
@@ -325,6 +402,15 @@ function initializePage() {
     }
 }
 
-// Inicializar la página
+// Inicializar la página y el formulario
 initializePage();
+
+// Inicializar formulario cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initializeForm, 50);
+    });
+} else {
+    setTimeout(initializeForm, 50);
+}
 
