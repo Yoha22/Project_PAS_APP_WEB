@@ -232,13 +232,59 @@ function initializeUsuarios() {
             status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
             
             status.textContent = 'Esperando huella en el dispositivo...';
-            console.log('🔗 Intentando conectar con ESP32 vía proxy backend (IP: ' + esp32IP + ')');
+            console.log('🔗 Intentando conectar con ESP32 (IP: ' + esp32IP + ')');
             
             try {
-                // Usar el backend como proxy para evitar problemas de Mixed Content
-                const response = await apiClient.get('/esp32-proxy/registrar-huella', {
-                    params: { ip: esp32IP }
-                });
+                let response;
+                
+                // Intentar conexión directa primero (si estamos en la misma red local)
+                const isSecureContext = window.location.protocol === 'https:';
+                const esp32Url = `http://${esp32IP}/registrarHuella`;
+                
+                if (isSecureContext) {
+                    // Si estamos en HTTPS (desplegado), usar proxy del backend
+                    console.log('📡 Usando proxy del backend (contexto seguro)');
+                    response = await apiClient.get('/esp32-proxy/registrar-huella', {
+                        params: { ip: esp32IP },
+                        timeout: 45000 // 45 segundos para capturar huella
+                    });
+                } else {
+                    // Si estamos en HTTP (local), intentar conexión directa
+                    console.log('🔗 Intentando conexión directa al ESP32');
+                    try {
+                        const directResponse = await fetch(esp32Url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json, text/plain, */*'
+                            },
+                            signal: AbortSignal.timeout(45000) // 45 segundos timeout
+                        });
+                        
+                        if (directResponse.ok) {
+                            const data = await directResponse.json().catch(() => {
+                                // Si no es JSON, intentar como texto
+                                return directResponse.text().then(text => {
+                                    try {
+                                        return JSON.parse(text);
+                                    } catch {
+                                        return { success: true, idHuella: text.trim() };
+                                    }
+                                });
+                            });
+                            
+                            response = { data: data };
+                        } else {
+                            throw new Error(`HTTP ${directResponse.status}`);
+                        }
+                    } catch (directError) {
+                        console.warn('⚠️ Conexión directa falló, intentando con proxy:', directError);
+                        // Si falla la conexión directa, intentar con proxy
+                        response = await apiClient.get('/esp32-proxy/registrar-huella', {
+                            params: { ip: esp32IP },
+                            timeout: 45000
+                        });
+                    }
+                }
                 
                 if (response.data.success) {
                     // El backend devuelve el ID de la huella del ESP32
@@ -307,6 +353,11 @@ function initializeUsuarios() {
                 
                 let errorMessage = 'No se pudo conectar con el dispositivo de huellas.';
                 let errorDetails = '';
+                let isCloudBackend = window.location.protocol === 'https:';
+                const isTimeout = error.message?.includes('timeout') || 
+                                 error.message?.includes('Connection timed out') ||
+                                 error.code === 'ECONNABORTED' ||
+                                 error.response?.data?.details?.includes('Connection timed out');
                 
                 // Manejar diferentes tipos de errores
                 if (error.response?.data?.error) {
@@ -320,17 +371,50 @@ function initializeUsuarios() {
                 } else if (error.message) {
                     errorDetails = error.message;
                 } else {
-                    errorDetails = 'Error desconocido. Verifica que:\n- El ESP32 esté encendido y conectado a la red\n- La IP configurada sea correcta (' + esp32IP + ')\n- El backend pueda acceder al ESP32';
+                    errorDetails = 'Error desconocido.';
+                }
+                
+                // Mensaje especial para cuando el backend en la nube no puede alcanzar el ESP32 local
+                if (isCloudBackend && (isTimeout || errorDetails.includes('No se pudo conectar'))) {
+                    errorMessage = 'El backend en la nube no puede alcanzar el ESP32 en tu red local';
+                    errorDetails = `
+                        <div style="text-align: left; margin-top: 15px;">
+                            <p style="margin-bottom: 10px;"><strong>Problema:</strong></p>
+                            <p style="font-size: 0.9em; margin-bottom: 15px;">
+                                El backend desplegado en Render.com no puede acceder a IPs privadas locales (como ${esp32IP}).
+                                Esto es normal porque las IPs privadas no son accesibles desde internet.
+                            </p>
+                            
+                            <p style="margin-bottom: 10px;"><strong>Soluciones:</strong></p>
+                            <ol style="font-size: 0.9em; margin-left: 20px; margin-bottom: 15px;">
+                                <li style="margin-bottom: 5px;">
+                                    <strong>Usar desde red local:</strong> Accede al frontend desde <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">http://</code> en lugar de <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">https://</code> cuando estés en la misma red que el ESP32.
+                                </li>
+                                <li style="margin-bottom: 5px;">
+                                    <strong>Usar túnel (ngrok):</strong> Expone el ESP32 a internet temporalmente usando ngrok o similar.
+                                </li>
+                                <li style="margin-bottom: 5px;">
+                                    <strong>Configurar VPN:</strong> Conecta el backend y el ESP32 a la misma VPN.
+                                </li>
+                            </ol>
+                            
+                            <p style="font-size: 0.85em; color: #6b7280; margin-top: 15px;">
+                                IP del ESP32: <strong>${esp32IP}</strong><br>
+                                Protocolo actual: <strong>${window.location.protocol}</strong>
+                            </p>
+                        </div>
+                    `;
                 }
                 
                 const result = await Swal.fire({
                     icon: 'warning',
                     title: 'Advertencia',
-                    html: `<p><strong>${errorMessage}</strong></p><p style="font-size: 0.9em; margin-top: 10px; white-space: pre-line;">${errorDetails}</p>`,
+                    html: `<p><strong>${errorMessage}</strong></p>${errorDetails}`,
                     showCancelButton: true,
                     confirmButtonText: 'Configurar IP',
                     cancelButtonText: 'Continuar sin huella',
-                    footer: '<small>Puedes agregar el usuario sin huella o ingresar el ID manualmente</small>'
+                    footer: '<small>Puedes agregar el usuario sin huella o ingresar el ID manualmente</small>',
+                    width: '650px'
                 });
                 
                 if (result.isConfirmed) {
