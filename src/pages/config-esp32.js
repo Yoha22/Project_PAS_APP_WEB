@@ -98,21 +98,59 @@ async function detectAndSetMode() {
     const optimalMode = await getOptimalMode(configIP);
     
     currentMode = optimalMode.mode;
-    useServiceWorker = optimalMode.details.useServiceWorker || false;
+    
+    // Si está en modo directo, SIEMPRE intentar usar Service Worker para evitar CORS
+    if (currentMode === 'direct' || currentMode === 'hybrid') {
+        debugLog('Modo directo detectado - registrando Service Worker para evitar CORS');
+        
+        // Asegurar que Service Worker esté registrado
+        const swRegistered = await registerServiceWorker();
+        useServiceWorker = swRegistered; // Usar SW si se registró exitosamente
+        
+        if (!swRegistered) {
+            debugLog('WARNING: Service Worker no disponible, pueden haber problemas de CORS');
+            // Intentar de todas formas sin Service Worker
+            useServiceWorker = false;
+        }
+        
+        // Mostrar mensaje informativo si está en modo directo
+        if (currentMode === 'direct') {
+            const instructionsEl = document.getElementById('directModeInstructions');
+            if (instructionsEl) {
+                instructionsEl.classList.remove('hidden');
+            }
+            
+            const statusEl = document.getElementById('esp32ConnectionStatus');
+            if (statusEl) {
+                statusEl.innerHTML = `
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                        <p class="text-yellow-800 dark:text-yellow-200 font-semibold mb-2">
+                            <i class="fas fa-wifi mr-2"></i>Modo Directo Activo
+                        </p>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-2">
+                            Estás conectado directamente a la red WiFi del ESP32. El sistema funcionará sin necesidad de internet.
+                        </p>
+                        <p class="text-xs text-yellow-600 dark:text-yellow-400">
+                            <strong>Nota:</strong> Asegúrate de estar conectado al WiFi "SistemaAcceso-XXXX" para poder configurar el dispositivo.
+                        </p>
+                    </div>
+                `;
+            }
+        } else {
+            const instructionsEl = document.getElementById('directModeInstructions');
+            if (instructionsEl) {
+                instructionsEl.classList.add('hidden');
+            }
+        }
+    } else {
+        useServiceWorker = optimalMode.details.useServiceWorker || false;
+    }
 
     debugLog('Modo óptimo determinado', {
         mode: currentMode,
         useServiceWorker,
         details: optimalMode.details
     });
-
-    // Si necesita Service Worker, registrarlo
-    if (useServiceWorker) {
-        const swRegistered = await registerServiceWorker();
-        if (!swRegistered) {
-            debugLog('WARNING: No se pudo registrar Service Worker, puede haber problemas de CORS');
-        }
-    }
 
     // Actualizar indicador visual
     updateModeIndicator(currentMode, optimalMode.details);
@@ -193,6 +231,12 @@ async function initializeConfig() {
             debugLog('Service Worker no pudo registrarse inicialmente', err);
         });
     }
+
+    // Registrar Service Worker PRIMERO (funciona offline)
+    debugLog('Inicializando: Registrando Service Worker primero...');
+    await registerServiceWorker().catch(err => {
+        debugLog('Service Worker no disponible, continuando sin él', err);
+    });
 
     // Detectar modo óptimo al inicializar
     await detectAndSetMode();
@@ -343,13 +387,33 @@ async function checkESP32Connection() {
                 // Si el proxy falla, puede ser que no haya internet
                 statusDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800';
                 statusIcon.className = 'fas fa-exclamation-triangle text-yellow-500 mr-2';
-                statusText.textContent = `No se pudo verificar vía proxy. Puede que no haya internet. Intenta conectarte a la red del ESP32.`;
+                statusText.innerHTML = `
+                    <div>
+                        <p class="mb-2">No se pudo verificar vía proxy. Puede que no haya internet.</p>
+                        <p class="text-xs mt-2"><strong>Para configurar el ESP32:</strong></p>
+                        <ol class="list-decimal list-inside text-xs ml-2">
+                            <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
+                            <li>Vuelve a esta página y haz clic en "Verificar Conexión"</li>
+                        </ol>
+                    </div>
+                `;
                 debugLog('Proxy no disponible', { error: proxyError.message });
             }
         } catch (error) {
             statusDiv.className = 'mb-4 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800';
             statusIcon.className = 'fas fa-times-circle text-red-500 mr-2';
-            statusText.textContent = `No se pudo conectar con el ESP32. Verifica que esté encendido y en la misma red.`;
+            statusText.innerHTML = `
+                <div>
+                    <p class="mb-2">No se pudo conectar con el ESP32 en modo configuración.</p>
+                    <p class="text-xs mt-2"><strong>Instrucciones:</strong></p>
+                    <ol class="list-decimal list-inside text-xs ml-2">
+                        <li>Asegúrate de que el ESP32 esté encendido y en modo configuración (red "SistemaAcceso-XXXX")</li>
+                        <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
+                        <li>Verifica que la IP de configuración sea 192.168.4.1</li>
+                        <li>Vuelve a hacer clic en "Verificar Conexión"</li>
+                    </ol>
+                </div>
+            `;
             debugLog('No se pudo conectar con ESP32', { error: error.message, ip: esp32IP });
         }
     } else {
@@ -409,24 +473,24 @@ async function activateConfigMode() {
         
         let response;
         
-        // Usar modo directo si está disponible, sino usar proxy
-        if (currentMode === 'direct' || currentMode === 'hybrid') {
-            const directResult = await activateConfigModeDirect(esp32IP, useServiceWorker);
-            if (directResult.success) {
-                response = { data: directResult };
-            } else {
-                // Fallback a proxy si directo falla
-                debugLog('Modo directo falló, usando proxy', directResult);
-                response = await apiClient.post('/esp32/activate-config-mode', {
-                    ip: esp32IP
-                });
-            }
-        } else {
-            // Usar proxy del backend
-            response = await apiClient.post('/esp32/activate-config-mode', {
-                ip: esp32IP
+        // Para activar modo config, generalmente necesitamos el backend porque el ESP32 está en IP normal
+        // Pero intentemos directo primero si está en modo hybrid
+        if (currentMode === 'direct') {
+            debugLog('Modo directo activo, pero activar modo config requiere IP normal - usando proxy');
+            // En modo directo, el ESP32 ya está en modo config, no necesitamos activarlo
+            Swal.fire({
+                icon: 'info',
+                title: 'ESP32 ya en modo configuración',
+                text: 'El ESP32 parece estar ya en modo configuración. Puedes cargar el formulario directamente.'
             });
+            return;
         }
+        
+        // Usar proxy del backend para activar modo config (requiere internet)
+        debugLog('Usando proxy del backend para activar modo configuración (requiere internet)');
+        response = await apiClient.post('/esp32/activate-config-mode', {
+            ip: esp32IP
+        });
 
         debugLog('Respuesta de activación recibida', response.data);
 
@@ -506,14 +570,25 @@ async function loadESP32ConfigHtml() {
         
         let result;
         
-        // Usar modo directo si está disponible
+        // Si está en modo directo, NO usar el backend en absoluto
         if (currentMode === 'direct' || currentMode === 'hybrid') {
-            debugLog('Usando modo directo para cargar HTML');
+            debugLog('Usando modo directo para cargar HTML (SIN backend)');
+            
+            // Asegurar que Service Worker esté registrado si es necesario
+            if (!useServiceWorker) {
+                debugLog('Intentando registrar Service Worker antes de cargar HTML');
+                const swRegistered = await registerServiceWorker();
+                if (swRegistered) {
+                    useServiceWorker = true;
+                    debugLog('Service Worker registrado exitosamente');
+                }
+            }
+            
             result = await getConfigHtmlDirect(configIP, useServiceWorker);
             
+            // Si falla por CORS y no estamos usando Service Worker, intentar registrarlo
             if (!result.success && result.corsBlocked && !useServiceWorker) {
-                // Intentar registrar Service Worker y reintentar
-                debugLog('CORS bloqueado, intentando registrar Service Worker');
+                debugLog('CORS bloqueado, intentando registrar Service Worker y reintentar');
                 const swRegistered = await registerServiceWorker();
                 if (swRegistered) {
                     useServiceWorker = true;
@@ -521,23 +596,32 @@ async function loadESP32ConfigHtml() {
                 }
             }
             
-            // Si el modo directo falla completamente, intentar proxy como fallback
+            // Si el modo directo falla y estamos en modo hybrid, intentar proxy solo si hay internet
             if (!result.success && currentMode === 'hybrid') {
-                debugLog('Modo directo falló, usando proxy como fallback');
-                try {
-                    const response = await apiClient.get('/esp32/config-html', {
-                        params: { ip: configIP }
-                    });
-                    if (response.data.success) {
-                        result = { success: true, html: response.data.html };
+                debugLog('Modo directo falló, verificando si hay internet para usar proxy');
+                const { checkInternetConnection } = await import('/src/utils/NetworkDetector.js');
+                const hasInternet = await checkInternetConnection();
+                
+                if (hasInternet) {
+                    debugLog('Internet disponible, usando proxy como fallback');
+                    try {
+                        const response = await apiClient.get('/esp32/config-html', {
+                            params: { ip: configIP }
+                        });
+                        if (response.data.success) {
+                            result = { success: true, html: response.data.html };
+                        }
+                    } catch (proxyError) {
+                        debugLog('Proxy también falló', proxyError);
+                        throw new Error('No se pudo cargar el formulario ni vía directo ni vía proxy. Verifica tu conexión.');
                     }
-                } catch (proxyError) {
-                    debugLog('Proxy también falló', proxyError);
+                } else {
+                    throw new Error('No hay conexión a internet y el modo directo falló. Asegúrate de estar conectado a la red del ESP32.');
                 }
             }
         } else {
-            // Usar proxy del backend
-            debugLog('Usando proxy del backend para cargar HTML');
+            // Usar proxy del backend (requiere internet)
+            debugLog('Usando proxy del backend para cargar HTML (requiere internet)');
             const response = await apiClient.get('/esp32/config-html', {
                 params: { ip: configIP }
             });
@@ -672,14 +756,24 @@ async function handleESP32FormSubmit(e) {
 
         let result;
         
-        // Usar modo directo si está disponible
+        // Si está en modo directo, NO usar el backend en absoluto
         if (currentMode === 'direct' || currentMode === 'hybrid') {
-            debugLog('Usando modo directo para enviar configuración');
+            debugLog('Usando modo directo para enviar configuración (SIN backend)');
+            
+            // Asegurar que Service Worker esté registrado
+            if (!useServiceWorker) {
+                debugLog('Intentando registrar Service Worker antes de enviar');
+                const swRegistered = await registerServiceWorker();
+                if (swRegistered) {
+                    useServiceWorker = true;
+                }
+            }
+            
             result = await postConfigDirect(configIP, data, useServiceWorker);
             
             // Si falla por CORS y no estamos usando Service Worker, intentar registrarlo
             if (!result.success && result.corsBlocked && !useServiceWorker) {
-                debugLog('CORS bloqueado, intentando registrar Service Worker');
+                debugLog('CORS bloqueado, intentando registrar Service Worker y reintentar');
                 const swRegistered = await registerServiceWorker();
                 if (swRegistered) {
                     useServiceWorker = true;
@@ -687,24 +781,31 @@ async function handleESP32FormSubmit(e) {
                 }
             }
             
-            // Si el modo directo falla completamente, intentar proxy como fallback
+            // Si el modo directo falla y estamos en modo hybrid, intentar proxy solo si hay internet
             if (!result.success && currentMode === 'hybrid') {
-                debugLog('Modo directo falló, usando proxy como fallback');
-                try {
-                    const response = await apiClient.post('/esp32/config', {
-                        ...data,
-                        ip: configIP
-                    });
-                    if (response.data.success) {
-                        result = { success: true, data: response.data };
+                debugLog('Modo directo falló, verificando si hay internet para usar proxy');
+                const { checkInternetConnection } = await import('/src/utils/NetworkDetector.js');
+                const hasInternet = await checkInternetConnection();
+                
+                if (hasInternet) {
+                    debugLog('Internet disponible, usando proxy como fallback');
+                    try {
+                        const response = await apiClient.post('/esp32/config', {
+                            ...data,
+                            ip: configIP
+                        });
+                        result = { success: response.data.success, data: response.data };
+                    } catch (proxyError) {
+                        debugLog('Proxy también falló', proxyError);
+                        throw new Error('No se pudo enviar la configuración ni vía directo ni vía proxy.');
                     }
-                } catch (proxyError) {
-                    debugLog('Proxy también falló', proxyError);
+                } else {
+                    throw new Error('No hay conexión a internet y el modo directo falló. Asegúrate de estar conectado a la red del ESP32 y que el Service Worker esté activo.');
                 }
             }
         } else {
-            // Usar proxy del backend
-            debugLog('Usando proxy del backend para enviar configuración');
+            // Usar proxy del backend (requiere internet)
+            debugLog('Usando proxy del backend para enviar configuración (requiere internet)');
             const response = await apiClient.post('/esp32/config', {
                 ...data,
                 ip: configIP

@@ -68,6 +68,19 @@
                     </div>
                 </div>
 
+                <!-- Instrucciones para modo directo -->
+                <div id="directModeInstructions" class="hidden mb-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                    <h4 class="font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>Instrucciones para Configuración Directa
+                    </h4>
+                    <ol class="list-decimal list-inside text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                        <li>Conecta tu dispositivo a la red WiFi "SistemaAcceso-XXXX"</li>
+                        <li>Una vez conectado, podrás configurar el ESP32 directamente sin necesidad de internet</li>
+                        <li>Haz clic en "Cargar Formulario ESP32" para comenzar</li>
+                        <li>Después de configurar, el ESP32 se reiniciará y se conectará a la red WiFi configurada</li>
+                    </ol>
+                </div>
+
                 <div class="flex flex-wrap gap-2">
                     <button id="checkConnectionBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">
                         <i class="fas fa-satellite-dish mr-2"></i>Verificar Conexión
