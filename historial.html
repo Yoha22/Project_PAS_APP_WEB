@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial - Sistema de Acceso</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        // Inicializar tema antes de que se cargue la página para evitar flash
+        (function() {
+            const savedTheme = localStorage.getItem('darkMode');
+            const isDark = savedTheme === 'true' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <nav class="bg-white dark:bg-gray-800 shadow-lg mb-8">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold dark:text-white">Sistema de Acceso</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer">
+                        <i class="fas fa-moon dark:fa-sun text-gray-800 dark:text-yellow-400" id="themeIcon"></i>
+                    </button>
+                    <a href="/dashboard.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Dashboard</a>
+                    <a href="/usuarios.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Usuarios</a>
+                    <a href="/dispositivos.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Dispositivos</a>
+                    <a href="/historial.html" class="text-blue-600 dark:text-blue-400 font-bold">Historial</a>
+                    <a href="/alarmas.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Alarmas</a>
+                    <a href="/config-esp32.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400" title="Configurar IP del ESP32">
+                        <i class="fas fa-cog"></i>
+                    </a>
+                    <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                        Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold mb-6 dark:text-white">Historial de Accesos</h2>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-blue-300 dark:bg-blue-700 text-white">
+                    <tr>
+                        <th class="px-6 py-3">ID</th>
+                        <th class="px-6 py-3">Usuario</th>
+                        <th class="px-6 py-3">Fecha y Hora</th>
+                        <th class="px-6 py-3">Tipo de Acceso</th>
+                    </tr>
+                </thead>
+                <tbody id="accesosTable" class="dark:bg-gray-800">
+                    <tr class="dark:bg-gray-800">
+                        <td colspan="4" class="text-center py-4 dark:text-gray-200">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pagination" class="mt-4 flex justify-center"></div>
+    </div>
+
+    <script type="module" src="/src/pages/historial.js"></script>
+</body>
+</html>
+

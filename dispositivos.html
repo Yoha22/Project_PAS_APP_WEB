@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispositivos ESP32 - Sistema de Acceso</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('darkMode');
+            const isDark = savedTheme === 'true' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <nav class="bg-white dark:bg-gray-800 shadow-lg mb-8">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold dark:text-white">Sistema de Acceso</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                        <i class="fas fa-moon dark:fa-sun text-gray-800 dark:text-yellow-400" id="themeIcon"></i>
+                    </button>
+                    <a href="/dashboard.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Dashboard</a>
+                    <a href="/usuarios.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Usuarios</a>
+                    <a href="/dispositivos.html" class="text-blue-600 dark:text-blue-400 font-bold">Dispositivos</a>
+                    <a href="/historial.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Historial</a>
+                    <a href="/alarmas.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600">Alarmas</a>
+                    <a href="/config-esp32.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600" title="Configurar IP del ESP32">
+                        <i class="fas fa-cog"></i>
+                    </a>
+                    <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Cerrar Sesión</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold dark:text-white">Dispositivos ESP32</h2>
+            <button id="addDeviceBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <i class="fas fa-plus mr-2"></i>Agregar Dispositivo
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-blue-300 dark:bg-blue-700 text-white">
+                    <tr>
+                        <th class="px-6 py-3">ID</th>
+                        <th class="px-6 py-3">Nombre</th>
+                        <th class="px-6 py-3">IP Local</th>
+                        <th class="px-6 py-3">Última Conexión</th>
+                        <th class="px-6 py-3">Estado</th>
+                        <th class="px-6 py-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="dispositivosTable" class="dark:bg-gray-800">
+                    <tr>
+                        <td colspan="6" class="text-center py-4 dark:text-gray-200">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Agregar/Editar Dispositivo -->
+    <div id="deviceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-2xl font-bold mb-4 dark:text-white" id="modalTitle">Agregar Dispositivo</h3>
+            <form id="deviceForm">
+                <input type="hidden" id="deviceId">
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">Nombre</label>
+                    <input type="text" id="nombre" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">Código de Registro</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="codigo" class="flex-1 border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" placeholder="Código del administrador" required>
+                        <button type="button" id="generateCodeBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            <i class="fas fa-key"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Usa este código para registrar el dispositivo ESP32</p>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="cancelBtn" class="bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="/src/pages/dispositivos.js"></script>
+</body>
+</html>
+

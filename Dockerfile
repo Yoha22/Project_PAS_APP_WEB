@@ -34,16 +34,9 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copiar archivos compilados desde el stage de build
-# Copiar todo el contenido de dist (incluye public/ y assets/)
+# Los HTML están ahora en la raíz de dist/ (procesados por Vite como entry points)
+# Los assets están en dist/assets/
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copiar los HTML compilados desde dist/public/ a la raíz
-# Esto permite acceder a /login.html en lugar de /public/login.html
-RUN if [ -d /usr/share/nginx/html/public ]; then \
-        cp -r /usr/share/nginx/html/public/*.html /usr/share/nginx/html/ 2>/dev/null || true; \
-        # Eliminar la carpeta public después de copiar los HTML para evitar confusión
-        rm -rf /usr/share/nginx/html/public || true; \
-    fi
 
 # Copiar configuración de Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
