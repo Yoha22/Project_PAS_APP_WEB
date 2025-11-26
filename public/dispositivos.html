@@ -101,6 +101,9 @@
     </div>
 
     <script type="module">
+        // Importar CSS como módulo (Vite lo procesará durante el build)
+        import '/src/assets/css/dark-mode.css';
+        
         import { authService } from '/src/services/auth.js';
         import { dispositivosService } from '/src/services/dispositivos.js';
 
