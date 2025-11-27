@@ -26,10 +26,12 @@
     <nav class="bg-white dark:bg-gray-800 shadow-lg mb-8">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <h1 class="text-xl font-bold dark:text-white">Sistema de Acceso</h1>
+                <div class="flex items-center space-x-3">
+                    <img src="/img/huella2.PNG" alt="Logo" class="w-10 h-10 rounded-full">
+                    <h1 class="text-xl font-bold dark:text-white hidden sm:block">Sistema de Acceso</h1>
                 </div>
-                <div class="flex items-center space-x-4">
+                <!-- Menú desktop - visible en pantallas medianas y grandes -->
+                <div class="hidden md:flex items-center space-x-4">
                     <button id="themeToggle" onclick="toggleTheme()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer">
                         <i class="fas fa-moon dark:fa-sun text-gray-800 dark:text-yellow-400" id="themeIcon"></i>
                     </button>
@@ -42,6 +44,31 @@
                         <i class="fas fa-cog"></i>
                     </a>
                     <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                        Cerrar Sesión
+                    </button>
+                </div>
+                <!-- Menú mobile - botón hamburguesa y menú desplegable -->
+                <div class="md:hidden flex items-center space-x-2">
+                    <button id="themeToggleMobile" onclick="toggleTheme()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer">
+                        <i class="fas fa-moon dark:fa-sun text-gray-800 dark:text-yellow-400" id="themeIconMobile"></i>
+                    </button>
+                    <button id="mobileMenuBtn" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all cursor-pointer">
+                        <i class="fas fa-bars text-gray-800 dark:text-gray-300"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Menú desplegable mobile -->
+            <div id="mobileMenu" class="hidden md:hidden pb-4 border-t border-gray-200 dark:border-gray-700 mt-2">
+                <div class="flex flex-col space-y-2 pt-2">
+                    <a href="/dashboard.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Dashboard</a>
+                    <a href="/usuarios.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Usuarios</a>
+                    <a href="/dispositivos.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Dispositivos</a>
+                    <a href="/historial.html" class="text-blue-600 dark:text-blue-400 font-bold px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Historial</a>
+                    <a href="/alarmas.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">Alarmas</a>
+                    <a href="/config-esp32.html" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" title="Configurar IP del ESP32">
+                        <i class="fas fa-cog mr-2"></i>Configurar ESP32
+                    </a>
+                    <button id="logoutBtnMobile" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-left mt-2">
                         Cerrar Sesión
                     </button>
                 </div>
@@ -73,6 +100,70 @@
         <div id="pagination" class="mt-4 flex justify-center"></div>
     </div>
 
+    <script>
+        // Toggle menú mobile
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+                const icon = mobileMenuBtn.querySelector('i');
+                if (icon) {
+                    if (mobileMenu.classList.contains('hidden')) {
+                        icon.classList.remove('fa-times');
+                        icon.classList.add('fa-bars');
+                    } else {
+                        icon.classList.remove('fa-bars');
+                        icon.classList.add('fa-times');
+                    }
+                }
+            });
+        }
+
+        // Sincronizar iconos de tema
+        function syncThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const themeIcon = document.getElementById('themeIcon');
+            const themeIconMobile = document.getElementById('themeIconMobile');
+            
+            if (themeIcon) {
+                if (isDark) {
+                    themeIcon.classList.remove('fa-moon');
+                    themeIcon.classList.add('fa-sun');
+                } else {
+                    themeIcon.classList.remove('fa-sun');
+                    themeIcon.classList.add('fa-moon');
+                }
+            }
+            
+            if (themeIconMobile) {
+                if (isDark) {
+                    themeIconMobile.classList.remove('fa-moon');
+                    themeIconMobile.classList.add('fa-sun');
+                } else {
+                    themeIconMobile.classList.remove('fa-sun');
+                    themeIconMobile.classList.add('fa-moon');
+                }
+            }
+        }
+
+        // Sincronizar al cargar
+        syncThemeIcons();
+
+        // Escuchar cambios de tema
+        window.addEventListener('themechange', syncThemeIcons);
+
+        // Manejar logout desde mobile
+        const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        if (logoutBtnMobile && logoutBtn) {
+            logoutBtnMobile.addEventListener('click', () => {
+                logoutBtn.click();
+            });
+        }
+    </script>
     <script type="module" src="/src/pages/historial.js"></script>
 </body>
 </html>
