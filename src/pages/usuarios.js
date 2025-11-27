@@ -97,6 +97,7 @@ function initializeUsuarios() {
                 <td class="px-6 py-3 dark:text-gray-200">${usuario.huella_digital || '-'}</td>
                 <td class="px-6 py-3 dark:text-gray-200">${usuario.cedula || '-'}</td>
                 <td class="px-6 py-3 dark:text-gray-200">${usuario.celular || '-'}</td>
+                <td class="px-6 py-3 dark:text-gray-200">${usuario.clave ? '•••••' : '<span class="text-gray-400 italic">Sin código</span>'}</td>
                 <td class="px-6 py-3">
                     <button onclick="editUser(${usuario.id})" class="bg-blue-500 text-white px-2 py-1 rounded mr-2 hover:bg-blue-600">
                         <i class="fas fa-edit"></i> Editar
@@ -140,6 +141,7 @@ function initializeUsuarios() {
                 document.getElementById('nombre').value = usuario.nombre;
                 document.getElementById('cedula').value = usuario.cedula || '';
                 document.getElementById('celular').value = usuario.celular || '';
+                document.getElementById('clave').value = usuario.clave || '';
                 limpiarHuella();
                 document.getElementById('huella_digital').placeholder = 'La huella no se puede editar';
                 document.getElementById('capturarHuella').disabled = true;
@@ -436,6 +438,7 @@ function initializeUsuarios() {
         addUserBtn.addEventListener('click', () => {
             document.getElementById('userForm').reset();
             document.getElementById('userId').value = '';
+            document.getElementById('clave').value = ''; // Limpiar código personal
             limpiarHuella();
             document.getElementById('huella_digital').placeholder = 'O ingresa el ID manualmente (opcional)';
             document.getElementById('capturarHuella').disabled = false;
@@ -497,6 +500,21 @@ function initializeUsuarios() {
                 cedula: cedula || null,
                 celular: celular || null,
             };
+
+            // Agregar código personal si está presente
+            const clave = document.getElementById('clave').value.trim();
+            if (clave) {
+                // Validar que solo contenga números y máximo 10 dígitos
+                if (!/^[0-9]{1,10}$/.test(clave)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error de validación',
+                        text: 'El código personal debe contener solo números (máximo 10 dígitos)'
+                    });
+                    return;
+                }
+                formData.clave = clave;
+            }
 
             const huellaDigital = document.getElementById('huella_digital').value.trim();
             if (huellaDigital && huellaDigital !== '0') {

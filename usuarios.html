@@ -44,12 +44,13 @@
                         <th class="px-6 py-3">Huella Digital</th>
                         <th class="px-6 py-3">Cédula</th>
                         <th class="px-6 py-3">Celular</th>
+                        <th class="px-6 py-3">Código</th>
                         <th class="px-6 py-3">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="usuariosTable" class="dark:bg-gray-800">
                     <tr class="dark:bg-gray-800">
-                        <td colspan="6" class="text-center py-4 dark:text-gray-200">Cargando...</td>
+                        <td colspan="7" class="text-center py-4 dark:text-gray-200">Cargando...</td>
                     </tr>
                 </tbody>
             </table>
@@ -75,6 +76,20 @@
                 <div class="mb-4">
                     <label class="block text-gray-700 dark:text-gray-300 mb-2">Celular</label>
                     <input type="text" id="celular" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-key mr-1"></i>Código Personal (6 dígitos)
+                    </label>
+                    <input type="text" id="clave" name="clave" 
+                           class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                           placeholder="Ej: 123456" 
+                           maxlength="10"
+                           pattern="[0-9]{1,10}"
+                           title="Solo números, máximo 10 dígitos">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Código para doble verificación en el acceso físico. Opcional pero recomendado.
+                    </p>
                 </div>
                 <div class="mb-4">
                     <label class="block text-gray-700 dark:text-gray-300 mb-2">
