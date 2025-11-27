@@ -231,8 +231,10 @@ function initializeUsuarios() {
             status.textContent = 'Conectando con dispositivo...';
             status.className = 'text-xs text-yellow-600 dark:text-yellow-400';
             
-            status.textContent = 'Esperando huella en el dispositivo...';
+            // Actualizar mensaje para indicar que puede tomar tiempo
+            status.textContent = 'Esperando huella en el dispositivo (puede tomar hasta 60 segundos)...';
             console.log('🔗 Intentando conectar con ESP32 (IP: ' + esp32IP + ')');
+            console.log('⏱️ Esta operación puede tomar hasta 60 segundos (captura de huella + envío al backend)');
             
             try {
                 let response;
@@ -244,9 +246,10 @@ function initializeUsuarios() {
                 if (isSecureContext) {
                     // Si estamos en HTTPS (desplegado), usar proxy del backend
                     console.log('📡 Usando proxy del backend (contexto seguro)');
+                    console.log('⏱️ Timeout configurado: 60 segundos para capturar huella');
                     response = await apiClient.get('/esp32-proxy/registrar-huella', {
                         params: { ip: esp32IP },
-                        timeout: 45000 // 45 segundos para capturar huella
+                        timeout: 60000 // 60 segundos para capturar huella (permite tiempo para reintentos del ESP32)
                     });
                 } else {
                     // Si estamos en HTTP (local), intentar conexión directa
@@ -257,7 +260,7 @@ function initializeUsuarios() {
                             headers: {
                                 'Accept': 'application/json, text/plain, */*'
                             },
-                            signal: AbortSignal.timeout(45000) // 45 segundos timeout
+                            signal: AbortSignal.timeout(60000) // 60 segundos timeout
                         });
                         
                         if (directResponse.ok) {
@@ -279,9 +282,10 @@ function initializeUsuarios() {
                     } catch (directError) {
                         console.warn('⚠️ Conexión directa falló, intentando con proxy:', directError);
                         // Si falla la conexión directa, intentar con proxy
+                        console.log('⏱️ Timeout configurado: 60 segundos para capturar huella');
                         response = await apiClient.get('/esp32-proxy/registrar-huella', {
                             params: { ip: esp32IP },
-                            timeout: 45000
+                            timeout: 60000 // 60 segundos
                         });
                     }
                 }
