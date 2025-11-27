@@ -248,10 +248,10 @@ function initializeUsuarios() {
                 if (isSecureContext) {
                     // Si estamos en HTTPS (desplegado), usar proxy del backend
                     console.log('📡 Usando proxy del backend (contexto seguro)');
-                    console.log('⏱️ Timeout configurado: 60 segundos para capturar huella');
+                    console.log('⏱️ Timeout configurado: 120 segundos para capturar huella');
                     response = await apiClient.get('/esp32-proxy/registrar-huella', {
                         params: { ip: esp32IP },
-                        timeout: 60000 // 60 segundos para capturar huella (permite tiempo para reintentos del ESP32)
+                        timeout: 120000 // 120 segundos para capturar huella (60 segundos adicionales para confirmación)
                     });
                 } else {
                     // Si estamos en HTTP (local), intentar conexión directa
@@ -262,7 +262,7 @@ function initializeUsuarios() {
                             headers: {
                                 'Accept': 'application/json, text/plain, */*'
                             },
-                            signal: AbortSignal.timeout(60000) // 60 segundos timeout
+                            signal: AbortSignal.timeout(120000) // 120 segundos timeout (60 segundos adicionales para confirmación)
                         });
                         
                         if (directResponse.ok) {
@@ -284,10 +284,10 @@ function initializeUsuarios() {
                     } catch (directError) {
                         console.warn('⚠️ Conexión directa falló, intentando con proxy:', directError);
                         // Si falla la conexión directa, intentar con proxy
-                        console.log('⏱️ Timeout configurado: 60 segundos para capturar huella');
+                        console.log('⏱️ Timeout configurado: 120 segundos para capturar huella');
                         response = await apiClient.get('/esp32-proxy/registrar-huella', {
                             params: { ip: esp32IP },
-                            timeout: 60000 // 60 segundos
+                            timeout: 120000 // 120 segundos (60 segundos adicionales para confirmación)
                         });
                     }
                 }

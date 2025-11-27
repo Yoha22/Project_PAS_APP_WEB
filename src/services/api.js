@@ -29,7 +29,7 @@ const apiClient = axios.create({
     'Accept': 'application/json',
   },
   withCredentials: false, // NO usamos cookies, solo Bearer Token
-  timeout: 60000, // 60 segundos de timeout por defecto (aumentado para operaciones de huella que pueden tomar más tiempo)
+  timeout: 120000, // 120 segundos de timeout por defecto (90 segundos adicionales para confirmación de registro de huella)
 });
 
 // Interceptor para asegurar que las rutas siempre usen el baseURL
