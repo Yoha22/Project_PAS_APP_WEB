@@ -24,3 +24,144 @@ body {
   }
 }
 
+/* ============================================
+   ESTILOS RESPONSIVE - Asegurar compatibilidad
+   ============================================ */
+
+/* Clases auxiliares para responsividad */
+.responsive-title {
+  display: none;
+}
+
+.responsive-menu-desktop {
+  display: none;
+}
+
+.responsive-menu-mobile {
+  display: flex;
+}
+
+/* Mostrar título desde sm (640px) */
+@media (min-width: 640px) {
+  .responsive-title {
+    display: block !important;
+  }
+}
+
+/* Mostrar menú desktop y ocultar mobile desde md (768px) */
+@media (min-width: 768px) {
+  .responsive-menu-desktop {
+    display: flex !important;
+  }
+  
+  .responsive-menu-mobile {
+    display: none !important;
+  }
+  
+  /* Ocultar menú desplegable en desktop */
+  #mobileMenu {
+    display: none !important;
+  }
+  
+  /* Grid de dos columnas */
+  .responsive-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* En móviles (menos de 768px) */
+@media (max-width: 767px) {
+  /* Grid de una columna */
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Asegurar que el menú desplegable esté oculto por defecto */
+  #mobileMenu.hidden {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   ESTILOS RESPONSIVE - Asegurar que funcionen
+   ============================================ */
+
+/* Ocultar en pantallas pequeñas, mostrar desde sm (640px) */
+.hidden-sm-block {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  .hidden-sm-block {
+    display: block !important;
+  }
+  
+  /* Mostrar texto "Sistema de Acceso" desde sm */
+  .sm\:block {
+    display: block !important;
+  }
+}
+
+/* Ocultar menú desktop en móviles, mostrar desde md (768px) */
+@media (max-width: 767px) {
+  .md\:flex {
+    display: none !important;
+  }
+  
+  .md\:hidden {
+    display: flex !important;
+  }
+  
+  /* Asegurar que el menú mobile esté oculto por defecto */
+  #mobileMenu {
+    display: none !important;
+  }
+  
+  #mobileMenu:not(.hidden) {
+    display: block !important;
+  }
+}
+
+/* Mostrar menú desktop desde md (768px) */
+@media (min-width: 768px) {
+  .md\:flex {
+    display: flex !important;
+  }
+  
+  .md\:hidden {
+    display: none !important;
+  }
+  
+  /* Ocultar menú mobile en desktop */
+  #mobileMenu {
+    display: none !important;
+  }
+}
+
+/* Grid responsive */
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Asegurar que las clases de Tailwind responsive funcionen */
+@media (min-width: 640px) {
+  .sm\:text-4xl {
+    font-size: 2.25rem !important;
+    line-height: 2.5rem !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .md\:text-3xl {
+    font-size: 1.875rem !important;
+    line-height: 2.25rem !important;
+  }
+  
+  .md\:text-5xl {
+    font-size: 3rem !important;
+    line-height: 1 !important;
+  }
+}
+
