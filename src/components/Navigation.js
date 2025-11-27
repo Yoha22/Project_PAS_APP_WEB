@@ -15,6 +15,7 @@ export function createNavigationHTML(activePage = '') {
   const pages = [
     { path: '/dashboard.html', label: 'Dashboard', id: 'dashboard' },
     { path: '/usuarios.html', label: 'Usuarios', id: 'usuarios' },
+    { path: '/administradores.html', label: 'Administradores', id: 'administradores' },
     { path: '/dispositivos.html', label: 'Dispositivos', id: 'dispositivos' },
     { path: '/historial.html', label: 'Historial', id: 'historial' },
     { path: '/alarmas.html', label: 'Alarmas', id: 'alarmas' },
@@ -149,6 +150,7 @@ export function getCurrentPageId() {
   const pageMap = {
     'dashboard.html': 'dashboard',
     'usuarios.html': 'usuarios',
+    'administradores.html': 'administradores',
     'dispositivos.html': 'dispositivos',
     'historial.html': 'historial',
     'alarmas.html': 'alarmas',

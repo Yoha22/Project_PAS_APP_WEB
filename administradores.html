@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administradores - Sistema de Acceso</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Inicializar tema antes de que se cargue la página para evitar flash
+        (function() {
+            const savedTheme = localStorage.getItem('darkMode');
+            const isDark = savedTheme === 'true' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <!-- Navegación será insertada por el componente Navigation.js -->
+    <div id="nav"></div>
+
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold dark:text-white">Administradores</h2>
+            <button id="addAdminBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <i class="fas fa-plus mr-2"></i>Agregar Administrador
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-blue-300 dark:bg-blue-700 text-white">
+                    <tr>
+                        <th class="px-6 py-3">ID</th>
+                        <th class="px-6 py-3">Correo</th>
+                        <th class="px-6 py-3">Teléfono</th>
+                        <th class="px-6 py-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="administradoresTable" class="dark:bg-gray-800">
+                    <tr class="dark:bg-gray-800">
+                        <td colspan="4" class="text-center py-4 dark:text-gray-200">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Agregar/Editar Administrador -->
+    <div id="adminModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-2xl font-bold mb-4 dark:text-white" id="modalTitle">Agregar Administrador</h3>
+            <form id="adminForm">
+                <input type="hidden" id="adminId">
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-envelope mr-1"></i>Correo Electrónico
+                    </label>
+                    <input type="email" id="correo" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-phone mr-1"></i>Teléfono (10 dígitos)
+                    </label>
+                    <input type="text" id="telefono" class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                           placeholder="1234567890" maxlength="10" pattern="[0-9]{10}" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-lock mr-1"></i>Contraseña
+                    </label>
+                    <input type="password" id="password" name="password" 
+                           class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                           placeholder="Mínimo 6 caracteres con un símbolo" 
+                           minlength="6"
+                           pattern=".*[\W].*"
+                           title="Debe tener al menos 6 caracteres e incluir un símbolo especial">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" id="passwordHelp">
+                        Mínimo 6 caracteres con al menos un símbolo especial. Requerida al crear.
+                    </p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-key mr-1"></i>Código de Administrador
+                    </label>
+                    <input type="number" id="codigo" name="codigo" 
+                           class="w-full border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded px-3 py-2" 
+                           placeholder="Código único numérico" 
+                           required>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" id="codigoHelp">
+                        Código único para este administrador. No se mostrará después de guardar.
+                    </p>
+                </div>
+                <div class="mb-4" id="editPasswordSection" style="display: none;">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-info-circle mr-1"></i>Nota sobre contraseña
+                    </label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Deja en blanco para mantener la contraseña actual. Completa solo si deseas cambiarla.
+                    </p>
+                </div>
+                <div class="mb-4" id="editCodigoSection" style="display: none;">
+                    <label class="block text-gray-700 dark:text-gray-300 mb-2">
+                        <i class="fas fa-info-circle mr-1"></i>Nota sobre código
+                    </label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Deja en blanco para mantener el código actual. Completa solo si deseas cambiarlo.
+                    </p>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="cancelBtn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancelar</button>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        <span id="submitText">Guardar</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="/src/pages/administradores.js"></script>
+</body>
+</html>
+
