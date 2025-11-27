@@ -26,6 +26,7 @@ export default defineConfig({
         login: resolve(__dirname, 'login.html'),
         dashboard: resolve(__dirname, 'dashboard.html'),
         usuarios: resolve(__dirname, 'usuarios.html'),
+        administradores: resolve(__dirname, 'administradores.html'),
         dispositivos: resolve(__dirname, 'dispositivos.html'),
         historial: resolve(__dirname, 'historial.html'),
         alarmas: resolve(__dirname, 'alarmas.html'),
